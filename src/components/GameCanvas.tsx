@@ -173,10 +173,15 @@ export function GameCanvas() {
           }
         }
       }
-      // Space bar to toggle play/pause
+      // Space bar to toggle play/pause (only if station exists)
       if (e.key === ' ') {
         e.preventDefault();
-        dispatch({ type: 'TOGGLE_PLAY' });
+        const hasStation = Array.from(stateRef.current.tracks.values()).some(
+          (track) => track.type === 'station'
+        );
+        if (hasStation || stateRef.current.isPlaying) {
+          dispatch({ type: 'TOGGLE_PLAY' });
+        }
       }
       // Arrow keys for camera pan
       const panSpeed = 20;

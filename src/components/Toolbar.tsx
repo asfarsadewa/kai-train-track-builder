@@ -22,6 +22,12 @@ export function Toolbar() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
 
+  // Check if there's at least one station (required for train to spawn)
+  const hasStation = Array.from(state.tracks.values()).some(
+    (track) => track.type === 'station'
+  );
+  const canPlay = state.tracks.size > 0 && hasStation;
+
   // Handle ? key for help
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -121,7 +127,7 @@ export function Toolbar() {
             ...styles.playButton,
             ...(state.isPlaying ? styles.playButtonActive : {}),
           }}
-          disabled={state.tracks.size === 0}
+          disabled={!canPlay}
         >
           {state.isPlaying ? '⏸️ Pause' : '▶️ Play'}
         </button>
@@ -134,8 +140,12 @@ export function Toolbar() {
           </button>
         )}
       </div>
-      {state.tracks.size === 0 && (
-        <p style={styles.hint}>Place some tracks first!</p>
+      {!canPlay && (
+        <p style={styles.hint}>
+          {state.tracks.size === 0
+            ? 'Place some tracks first!'
+            : 'Place a station for the train to spawn!'}
+        </p>
       )}
 
       <div style={styles.divider} />
