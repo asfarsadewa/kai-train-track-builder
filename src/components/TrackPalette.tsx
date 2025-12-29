@@ -14,9 +14,7 @@ const TRACK_DISPLAY: { type: TrackType; icon: string; available: boolean }[] = [
   { type: 'bridge', icon: '🌉', available: true },
   { type: 'station', icon: '🏠', available: true },
   { type: 'signal', icon: '🚦', available: true },
-  { type: 'slope_up', icon: '⬈', available: false }, // Phase 4
-  { type: 'slope_down', icon: '⬊', available: false }, // Phase 4
-  { type: 'tunnel_entrance', icon: '🚇', available: false }, // Phase 4
+  { type: 'tunnel_entrance', icon: '🚇', available: true },
 ];
 
 export function TrackPalette() {

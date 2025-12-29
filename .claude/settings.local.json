@@ -3,7 +3,11 @@
     "allow": [
       "Bash(dir \"C:\\\\Users\\\\asfar\\\\repo\\\\kai\\\\kai-train-track-builder\" /B)",
       "Bash(dir \"C:\\\\Users\\\\asfar\\\\repo\\\\kai\\\\kai-train-track-builder\\\\src\" /B /S)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd auto-slope rendering for elevation transitions\n\n- Tracks now visually slope between tiles with different terrain elevations\n- Track elevation syncs automatically when terrain is raised/lowered\n- Simplified connection logic to handle elevation visually rather than as validation\n- Adjacent tracks meet smoothly at tile boundaries using midpoint elevation\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)",
+      "Bash(npm run build:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

@@ -10,6 +10,7 @@ import {
   findTrackAtPosition,
   calculateBestRotation,
   canPlaceTrack,
+  findConnectableNeighbors,
 } from '../logic/connections';
 import {
   findBestPath,
@@ -281,19 +282,20 @@ export function GameCanvas() {
         state.grid.height
       );
 
-      // Find the grid cell under the mouse
+      // Find the grid cell under the mouse (pass grid for elevation-aware detection)
       const cell = findGridCellAtScreenPoint(
         adjustedX,
         adjustedY,
         state.grid.width,
         state.grid.height,
         originX,
-        originY
+        originY,
+        state.grid
       );
 
       dispatch({ type: 'SET_HOVERED_CELL', cell });
     },
-    [dispatch, state.camera, state.grid.width, state.grid.height]
+    [dispatch, state.camera, state.grid]
   );
 
   // Handle mouse leave
@@ -349,7 +351,7 @@ export function GameCanvas() {
           // Get terrain elevation at this position
           const terrainElevation = state.grid.cells[y][x].elevation;
 
-          // Calculate best rotation for auto-connect (also determines elevation for slopes)
+          // Calculate best rotation for auto-connect
           const { rotation, elevation } = calculateBestRotation(
             state.selectedTrackType,
             { x, y },
@@ -357,13 +359,43 @@ export function GameCanvas() {
             terrainElevation
           );
 
+          // For bridges and tunnels, use neighbor track/terrain elevation instead of local terrain
+          // This allows bridges to span gaps at elevated height
+          let finalElevation = elevation;
+          if (state.selectedTrackType === 'bridge' || state.selectedTrackType === 'tunnel_entrance') {
+            const neighbors = findConnectableNeighbors({ x, y }, state.tracks);
+            if (neighbors.length > 0) {
+              // Use the elevation of the first connecting neighbor track
+              finalElevation = neighbors[0].track.elevation;
+            } else {
+              // No neighbor tracks - check neighbor terrain elevations
+              // Use the maximum elevation of adjacent terrain tiles
+              let maxNeighborElevation = terrainElevation;
+              const offsets = [
+                { dx: 0, dy: -1 }, // N
+                { dx: 1, dy: 0 },  // E
+                { dx: 0, dy: 1 },  // S
+                { dx: -1, dy: 0 }, // W
+              ];
+              for (const { dx, dy } of offsets) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (nx >= 0 && nx < state.grid.width && ny >= 0 && ny < state.grid.height) {
+                  const neighborTerrain = state.grid.cells[ny][nx].elevation;
+                  maxNeighborElevation = Math.max(maxNeighborElevation, neighborTerrain);
+                }
+              }
+              finalElevation = maxNeighborElevation;
+            }
+          }
+
           // Create new track piece
           const newTrack: TrackPiece = {
             id: generateId(),
             type: state.selectedTrackType,
             position: { x, y },
             rotation,
-            elevation,
+            elevation: finalElevation,
             connections: [],
           };
 

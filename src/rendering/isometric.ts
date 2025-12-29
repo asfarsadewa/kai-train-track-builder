@@ -1,6 +1,6 @@
 // Isometric coordinate transformation utilities
 
-import type { GridPosition, ScreenPoint } from '../types';
+import type { GridPosition, ScreenPoint, GameGrid } from '../types';
 import { TILE_WIDTH, TILE_HEIGHT, ELEVATION_HEIGHT } from '../constants';
 
 /**
@@ -94,6 +94,7 @@ export function isPointInTile(
 /**
  * Find which grid cell contains a screen point
  * Iterates through possible cells and checks containment
+ * Now accounts for terrain elevation when detecting clicks
  */
 export function findGridCellAtScreenPoint(
   screenX: number,
@@ -101,18 +102,24 @@ export function findGridCellAtScreenPoint(
   gridWidth: number,
   gridHeight: number,
   originX: number,
-  originY: number
+  originY: number,
+  grid?: GameGrid
 ): GridPosition | null {
   // Get approximate grid position
   const relativeX = screenX - originX;
   const relativeY = screenY - originY;
 
-  // Convert to approximate grid coords
+  // Convert to approximate grid coords (at elevation 0 initially)
   const approx = screenToGrid(relativeX, relativeY, 0);
 
   // Check the approximate cell and its neighbors
   // (needed because isometric tiles overlap)
-  const checkRange = 2;
+  // Increased range to handle elevated tiles that may appear offset
+  const checkRange = 4;
+
+  // Track best match - prefer higher elevation tiles (they're rendered on top)
+  let bestMatch: GridPosition | null = null;
+  let bestElevation = -1;
 
   for (let dy = -checkRange; dy <= checkRange; dy++) {
     for (let dx = -checkRange; dx <= checkRange; dx++) {
@@ -124,17 +131,24 @@ export function findGridCellAtScreenPoint(
         continue;
       }
 
-      // Get screen position of this cell
-      const cellScreen = gridToScreen(testX, testY, 0);
+      // Get the terrain elevation for this cell
+      const elevation = grid ? grid.cells[testY][testX].elevation : 0;
+
+      // Get screen position of this cell at its actual elevation
+      const cellScreen = gridToScreen(testX, testY, elevation);
       const cellScreenX = cellScreen.px + originX;
       const cellScreenY = cellScreen.py + originY;
 
       // Check if point is in this tile
       if (isPointInTile(screenX, screenY, cellScreenX, cellScreenY)) {
-        return { x: testX, y: testY };
+        // Prefer higher elevation tiles (they're visually on top)
+        if (elevation > bestElevation) {
+          bestMatch = { x: testX, y: testY };
+          bestElevation = elevation;
+        }
       }
     }
   }
 
-  return null;
+  return bestMatch;
 }

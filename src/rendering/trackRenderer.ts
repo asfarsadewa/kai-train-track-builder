@@ -384,7 +384,8 @@ export function drawTrack(
   track: TrackPiece,
   originX: number,
   originY: number,
-  connectionElevations: ConnectionElevations = {}
+  connectionElevations: ConnectionElevations = {},
+  terrainElevation: number = 0
 ) {
   const paths = TRACK_PATHS[track.type];
   if (!paths) return;
@@ -392,6 +393,14 @@ export function drawTrack(
   const screenPos = gridToScreen(track.position.x, track.position.y, track.elevation);
   const centerX = screenPos.px + originX;
   const centerY = screenPos.py + originY;
+
+  // For bridges, draw support pillars first (underneath everything)
+  if (track.type === 'bridge') {
+    const elevationDiff = track.elevation - terrainElevation;
+    if (elevationDiff > 0) {
+      drawBridgeSupports(ctx, centerX, centerY, track.rotation, elevationDiff);
+    }
+  }
 
   // Draw each path
   for (const path of paths) {
@@ -407,7 +416,9 @@ export function drawTrack(
   } else if (track.type === 'signal') {
     drawSignal(ctx, centerX, centerY, track.rotation, track.signalState || 'green');
   } else if (track.type === 'bridge') {
-    // Bridge railings could be added here
+    drawBridgeRailings(ctx, centerX, centerY, track.rotation);
+  } else if (track.type === 'tunnel_entrance') {
+    drawTunnelPortal(ctx, centerX, centerY, track.rotation);
   }
 }
 
@@ -487,6 +498,281 @@ function drawSignal(
   ctx.fill();
 }
 
+// Draw bridge railings
+function drawBridgeRailings(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  rotation: Rotation
+) {
+  ctx.strokeStyle = '#8D6E63';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+
+  // Left railing posts
+  const leftPosts = [
+    { x: 0.3, y: 0.15 },
+    { x: 0.3, y: 0.5 },
+    { x: 0.3, y: 0.85 },
+  ];
+
+  // Right railing posts
+  const rightPosts = [
+    { x: 0.7, y: 0.15 },
+    { x: 0.7, y: 0.5 },
+    { x: 0.7, y: 0.85 },
+  ];
+
+  // Draw posts and rails
+  for (const posts of [leftPosts, rightPosts]) {
+    // Draw vertical posts
+    for (const post of posts) {
+      const rotated = rotateLocal(post.x, post.y, rotation);
+      const iso = localToIso(rotated.x, rotated.y);
+      ctx.beginPath();
+      ctx.moveTo(centerX + iso.dx, centerY + iso.dy);
+      ctx.lineTo(centerX + iso.dx, centerY + iso.dy - 12);
+      ctx.stroke();
+    }
+
+    // Draw horizontal rail
+    ctx.beginPath();
+    for (let i = 0; i < posts.length; i++) {
+      const rotated = rotateLocal(posts[i].x, posts[i].y, rotation);
+      const iso = localToIso(rotated.x, rotated.y);
+      if (i === 0) {
+        ctx.moveTo(centerX + iso.dx, centerY + iso.dy - 10);
+      } else {
+        ctx.lineTo(centerX + iso.dx, centerY + iso.dy - 10);
+      }
+    }
+    ctx.stroke();
+  }
+}
+
+// Draw bridge support pillars
+function drawBridgeSupports(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  rotation: Rotation,
+  elevationDiff: number
+) {
+  const pillarHeight = elevationDiff * ELEVATION_HEIGHT;
+  const woodColor = '#6D4C41';
+  const woodDark = '#4E342E';
+
+  // Support positions along the track
+  const supportPositions = [
+    { x: 0.25, y: 0.25 },
+    { x: 0.75, y: 0.25 },
+    { x: 0.25, y: 0.75 },
+    { x: 0.75, y: 0.75 },
+  ];
+
+  // Draw X-bracing between pillars (behind pillars)
+  ctx.strokeStyle = woodDark;
+  ctx.lineWidth = 2;
+
+  // Left side X-brace
+  const leftTop = rotateLocal(0.25, 0.25, rotation);
+  const leftBottom = rotateLocal(0.25, 0.75, rotation);
+  const leftTopIso = localToIso(leftTop.x, leftTop.y);
+  const leftBottomIso = localToIso(leftBottom.x, leftBottom.y);
+
+  ctx.beginPath();
+  ctx.moveTo(centerX + leftTopIso.dx, centerY + leftTopIso.dy);
+  ctx.lineTo(centerX + leftBottomIso.dx, centerY + leftBottomIso.dy + pillarHeight);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(centerX + leftBottomIso.dx, centerY + leftBottomIso.dy);
+  ctx.lineTo(centerX + leftTopIso.dx, centerY + leftTopIso.dy + pillarHeight);
+  ctx.stroke();
+
+  // Right side X-brace
+  const rightTop = rotateLocal(0.75, 0.25, rotation);
+  const rightBottom = rotateLocal(0.75, 0.75, rotation);
+  const rightTopIso = localToIso(rightTop.x, rightTop.y);
+  const rightBottomIso = localToIso(rightBottom.x, rightBottom.y);
+
+  ctx.beginPath();
+  ctx.moveTo(centerX + rightTopIso.dx, centerY + rightTopIso.dy);
+  ctx.lineTo(centerX + rightBottomIso.dx, centerY + rightBottomIso.dy + pillarHeight);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(centerX + rightBottomIso.dx, centerY + rightBottomIso.dy);
+  ctx.lineTo(centerX + rightTopIso.dx, centerY + rightTopIso.dy + pillarHeight);
+  ctx.stroke();
+
+  // Draw vertical pillars
+  for (const pos of supportPositions) {
+    const rotated = rotateLocal(pos.x, pos.y, rotation);
+    const iso = localToIso(rotated.x, rotated.y);
+
+    // Pillar shadow/back
+    ctx.fillStyle = woodDark;
+    ctx.fillRect(
+      centerX + iso.dx - 4,
+      centerY + iso.dy,
+      8,
+      pillarHeight + 2
+    );
+
+    // Pillar front
+    ctx.fillStyle = woodColor;
+    ctx.fillRect(
+      centerX + iso.dx - 3,
+      centerY + iso.dy,
+      6,
+      pillarHeight
+    );
+
+    // Pillar cap
+    ctx.fillStyle = woodDark;
+    ctx.fillRect(
+      centerX + iso.dx - 4,
+      centerY + iso.dy - 2,
+      8,
+      4
+    );
+  }
+
+  // Draw horizontal beam at base (ground level)
+  ctx.strokeStyle = woodColor;
+  ctx.lineWidth = 4;
+
+  // Front beam
+  const frontLeft = rotateLocal(0.2, 0.75, rotation);
+  const frontRight = rotateLocal(0.8, 0.75, rotation);
+  const frontLeftIso = localToIso(frontLeft.x, frontLeft.y);
+  const frontRightIso = localToIso(frontRight.x, frontRight.y);
+
+  ctx.beginPath();
+  ctx.moveTo(centerX + frontLeftIso.dx, centerY + frontLeftIso.dy + pillarHeight);
+  ctx.lineTo(centerX + frontRightIso.dx, centerY + frontRightIso.dy + pillarHeight);
+  ctx.stroke();
+
+  // Back beam
+  const backLeft = rotateLocal(0.2, 0.25, rotation);
+  const backRight = rotateLocal(0.8, 0.25, rotation);
+  const backLeftIso = localToIso(backLeft.x, backLeft.y);
+  const backRightIso = localToIso(backRight.x, backRight.y);
+
+  ctx.beginPath();
+  ctx.moveTo(centerX + backLeftIso.dx, centerY + backLeftIso.dy + pillarHeight);
+  ctx.lineTo(centerX + backRightIso.dx, centerY + backRightIso.dy + pillarHeight);
+  ctx.stroke();
+}
+
+// Draw tunnel portal (stone archway)
+function drawTunnelPortal(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  rotation: Rotation
+) {
+  // Draw portals at both ends of the tunnel
+  drawSinglePortal(ctx, centerX, centerY, rotation, 0.0);   // Entry (N side for rotation 0)
+  drawSinglePortal(ctx, centerX, centerY, rotation, 1.0);   // Exit (S side for rotation 0)
+}
+
+// Draw a single tunnel portal archway
+function drawSinglePortal(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  rotation: Rotation,
+  position: number  // 0 = start (N), 1 = end (S)
+) {
+  // Portal position along the track
+  const portalY = position;
+
+  // Stone color for the archway
+  const stoneColor = '#6D6552';
+  const stoneDark = '#4A4539';
+  const stoneLight = '#8A8272';
+
+  // Archway dimensions
+  const archWidth = 0.35;
+  const archHeight = 20;
+
+  // Left pillar
+  const leftBase = rotateLocal(0.5 - archWidth, portalY, rotation);
+  const leftIso = localToIso(leftBase.x, leftBase.y);
+
+  // Right pillar
+  const rightBase = rotateLocal(0.5 + archWidth, portalY, rotation);
+  const rightIso = localToIso(rightBase.x, rightBase.y);
+
+  // Draw darkness inside the tunnel (behind the arch)
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.moveTo(centerX + leftIso.dx + 3, centerY + leftIso.dy);
+  ctx.lineTo(centerX + rightIso.dx - 3, centerY + rightIso.dy);
+  ctx.lineTo(centerX + rightIso.dx - 3, centerY + rightIso.dy - archHeight + 5);
+  ctx.lineTo(centerX + leftIso.dx + 3, centerY + leftIso.dy - archHeight + 5);
+  ctx.closePath();
+  ctx.fill();
+
+  // Draw left pillar
+  ctx.fillStyle = stoneColor;
+  ctx.fillRect(centerX + leftIso.dx - 3, centerY + leftIso.dy - archHeight, 6, archHeight);
+
+  // Draw right pillar
+  ctx.fillRect(centerX + rightIso.dx - 3, centerY + rightIso.dy - archHeight, 6, archHeight);
+
+  // Draw arch top (semi-circular keystone area)
+  const archCenterX = (leftIso.dx + rightIso.dx) / 2;
+  const archCenterY = (leftIso.dy + rightIso.dy) / 2 - archHeight;
+  const archSpan = Math.abs(rightIso.dx - leftIso.dx) / 2;
+
+  // Arch stones
+  ctx.fillStyle = stoneDark;
+  ctx.beginPath();
+  ctx.arc(centerX + archCenterX, centerY + archCenterY + 5, archSpan + 3, Math.PI, 0, false);
+  ctx.lineTo(centerX + archCenterX + archSpan + 3, centerY + archCenterY + 10);
+  ctx.lineTo(centerX + archCenterX - archSpan - 3, centerY + archCenterY + 10);
+  ctx.closePath();
+  ctx.fill();
+
+  // Inner arch
+  ctx.fillStyle = stoneLight;
+  ctx.beginPath();
+  ctx.arc(centerX + archCenterX, centerY + archCenterY + 5, archSpan, Math.PI, 0, false);
+  ctx.lineTo(centerX + archCenterX + archSpan, centerY + archCenterY + 8);
+  ctx.lineTo(centerX + archCenterX - archSpan, centerY + archCenterY + 8);
+  ctx.closePath();
+  ctx.fill();
+
+  // Keystone at top of arch
+  ctx.fillStyle = stoneDark;
+  ctx.beginPath();
+  ctx.moveTo(centerX + archCenterX - 4, centerY + archCenterY - archSpan + 2);
+  ctx.lineTo(centerX + archCenterX + 4, centerY + archCenterY - archSpan + 2);
+  ctx.lineTo(centerX + archCenterX + 3, centerY + archCenterY - archSpan + 10);
+  ctx.lineTo(centerX + archCenterX - 3, centerY + archCenterY - archSpan + 10);
+  ctx.closePath();
+  ctx.fill();
+
+  // Add some stone texture lines on pillars
+  ctx.strokeStyle = stoneDark;
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const y = centerY + leftIso.dy - (archHeight * i / 4);
+    ctx.beginPath();
+    ctx.moveTo(centerX + leftIso.dx - 3, y);
+    ctx.lineTo(centerX + leftIso.dx + 3, y);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(centerX + rightIso.dx - 3, y);
+    ctx.lineTo(centerX + rightIso.dx + 3, y);
+    ctx.stroke();
+  }
+}
+
 /**
  * Get the terrain elevation at a neighbor position.
  * Returns undefined if the position is out of bounds.
@@ -510,32 +796,60 @@ function getNeighborTerrainElevation(
 }
 
 /**
+ * Check if there's a track at a neighbor position
+ */
+function hasNeighborTrack(
+  tracks: Map<string, TrackPiece>,
+  x: number,
+  y: number,
+  direction: CardinalDirection
+): boolean {
+  const offset = DIRECTION_OFFSETS[direction];
+  const nx = x + offset.x;
+  const ny = y + offset.y;
+
+  for (const track of tracks.values()) {
+    if (track.position.x === nx && track.position.y === ny) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Calculate connection elevations for a track based on neighbor terrain.
- * At each edge, we use the MIDPOINT between the track's elevation and the neighbor's.
- * This ensures adjacent tracks meet at the same height at tile boundaries.
+ * Only slopes toward neighbors that have tracks - dead ends stay flat.
+ * At each edge with a neighbor track, we use the MIDPOINT between elevations.
  */
 function calculateConnectionElevations(
   track: TrackPiece,
-  grid: GameGrid
+  grid: GameGrid,
+  tracks: Map<string, TrackPiece>
 ): ConnectionElevations {
   const elevations: ConnectionElevations = {};
   const directions: CardinalDirection[] = ['N', 'E', 'S', 'W'];
   const trackElev = track.elevation;
 
   for (const dir of directions) {
-    const neighborElev = getNeighborTerrainElevation(
-      grid,
-      track.position.x,
-      track.position.y,
-      dir
-    );
+    // Check if there's a track at the neighbor position
+    const hasTrack = hasNeighborTrack(tracks, track.position.x, track.position.y, dir);
 
-    if (neighborElev !== undefined) {
-      // Use midpoint between track elevation and neighbor elevation
-      // This ensures adjacent tracks meet at the same height at boundaries
-      elevations[dir] = (trackElev + neighborElev) / 2;
+    if (hasTrack) {
+      // There's a neighbor track - use midpoint for smooth connection
+      const neighborElev = getNeighborTerrainElevation(
+        grid,
+        track.position.x,
+        track.position.y,
+        dir
+      );
+
+      if (neighborElev !== undefined) {
+        elevations[dir] = (trackElev + neighborElev) / 2;
+      } else {
+        elevations[dir] = trackElev;
+      }
     } else {
-      // Out of bounds - use track's own elevation
+      // No neighbor track (dead end) - stay at track's own elevation
       elevations[dir] = trackElev;
     }
   }
@@ -560,7 +874,10 @@ export function renderTracks(
 
   for (const track of sortedTracks) {
     // Calculate what elevation the track should slope to at each edge
-    const connectionElevations = calculateConnectionElevations(track, grid);
-    drawTrack(ctx, track, originX, originY, connectionElevations);
+    // Only slopes toward neighbors that have tracks (dead ends stay flat)
+    const connectionElevations = calculateConnectionElevations(track, grid, tracks);
+    // Get terrain elevation at this position (for bridge support pillars)
+    const terrainElevation = grid.cells[track.position.y][track.position.x].elevation;
+    drawTrack(ctx, track, originX, originY, connectionElevations, terrainElevation);
   }
 }

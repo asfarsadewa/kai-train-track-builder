@@ -100,9 +100,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       );
 
       // Also update any track at this position to match the new terrain elevation
+      // Exception: bridges and tunnels maintain their own elevation (don't sync with terrain)
       const newTracks = new Map(state.tracks);
       for (const [id, track] of newTracks) {
         if (track.position.x === action.x && track.position.y === action.y) {
+          // Skip bridges and tunnels - they maintain independent elevation
+          if (track.type === 'bridge' || track.type === 'tunnel_entrance') {
+            continue;
+          }
           newTracks.set(id, { ...track, elevation: newElevation });
         }
       }
