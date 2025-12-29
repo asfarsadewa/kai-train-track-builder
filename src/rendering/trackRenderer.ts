@@ -179,7 +179,7 @@ function rotateLocal(
   return { x: newX + cx, y: newY + cy };
 }
 
-// Draw wooden sleepers along a path with wood grain effect
+// Draw wooden sleepers along a path as rectangular wooden planks (toy track style)
 function drawSleepers(
   ctx: CanvasRenderingContext2D,
   centerX: number,
@@ -190,6 +190,11 @@ function drawSleepers(
   connectionElevations: ConnectionElevations,
   numSleepers: number = 5
 ) {
+  // Sleeper dimensions
+  const sleeperLength = 0.18; // Width of the plank (perpendicular to track)
+  const sleeperThickness = 0.035; // Depth of the plank (along track direction)
+  const sleeperHeight = 3; // Visual height in pixels for 3D effect
+
   for (let i = 0; i < numSleepers; i++) {
     const t = (i + 0.5) / numSleepers;
 
@@ -223,84 +228,116 @@ function drawSleepers(
       connectionElevations
     );
 
-    // Calculate perpendicular for sleeper orientation
+    // Calculate perpendicular and tangent unit vectors
     const len = Math.sqrt(tangent.x * tangent.x + tangent.y * tangent.y);
     const perpX = -tangent.y / len;
     const perpY = tangent.x / len;
+    const tangX = tangent.x / len;
+    const tangY = tangent.y / len;
 
-    // Sleeper endpoints in local coords
-    const sleeperLen = 0.15;
-    const s1 = rotateLocal(
-      point.x + perpX * sleeperLen,
-      point.y + perpY * sleeperLen,
-      rotation
+    // Calculate 4 corners of the rectangular sleeper in local coords
+    const corners = [
+      { x: point.x + perpX * sleeperLength - tangX * sleeperThickness, y: point.y + perpY * sleeperLength - tangY * sleeperThickness },
+      { x: point.x + perpX * sleeperLength + tangX * sleeperThickness, y: point.y + perpY * sleeperLength + tangY * sleeperThickness },
+      { x: point.x - perpX * sleeperLength + tangX * sleeperThickness, y: point.y - perpY * sleeperLength + tangY * sleeperThickness },
+      { x: point.x - perpX * sleeperLength - tangX * sleeperThickness, y: point.y - perpY * sleeperLength - tangY * sleeperThickness },
+    ];
+
+    // Rotate and convert to isometric
+    const isoCorners = corners.map(c => {
+      const rotated = rotateLocal(c.x, c.y, rotation);
+      const iso = localToIso(rotated.x, rotated.y);
+      return {
+        x: centerX + iso.dx,
+        y: centerY + iso.dy + elevOffset,
+      };
+    });
+
+    // Draw shadow underneath
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.beginPath();
+    ctx.moveTo(isoCorners[0].x, isoCorners[0].y + 3);
+    ctx.lineTo(isoCorners[1].x, isoCorners[1].y + 3);
+    ctx.lineTo(isoCorners[2].x, isoCorners[2].y + 3);
+    ctx.lineTo(isoCorners[3].x, isoCorners[3].y + 3);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw front/side face (3D depth) - use the lower edge
+    const frontFace = [
+      { x: isoCorners[2].x, y: isoCorners[2].y },
+      { x: isoCorners[3].x, y: isoCorners[3].y },
+      { x: isoCorners[3].x, y: isoCorners[3].y + sleeperHeight },
+      { x: isoCorners[2].x, y: isoCorners[2].y + sleeperHeight },
+    ];
+    ctx.fillStyle = '#6D4C41'; // Dark wood for side
+    ctx.beginPath();
+    ctx.moveTo(frontFace[0].x, frontFace[0].y);
+    ctx.lineTo(frontFace[1].x, frontFace[1].y);
+    ctx.lineTo(frontFace[2].x, frontFace[2].y);
+    ctx.lineTo(frontFace[3].x, frontFace[3].y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw right side face
+    const rightFace = [
+      { x: isoCorners[1].x, y: isoCorners[1].y },
+      { x: isoCorners[2].x, y: isoCorners[2].y },
+      { x: isoCorners[2].x, y: isoCorners[2].y + sleeperHeight },
+      { x: isoCorners[1].x, y: isoCorners[1].y + sleeperHeight },
+    ];
+    ctx.fillStyle = '#5D4037'; // Darker wood for side
+    ctx.beginPath();
+    ctx.moveTo(rightFace[0].x, rightFace[0].y);
+    ctx.lineTo(rightFace[1].x, rightFace[1].y);
+    ctx.lineTo(rightFace[2].x, rightFace[2].y);
+    ctx.lineTo(rightFace[3].x, rightFace[3].y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw top face (main visible surface)
+    // Create wood grain gradient across the plank
+    const topGradient = ctx.createLinearGradient(
+      isoCorners[0].x, isoCorners[0].y,
+      isoCorners[2].x, isoCorners[2].y
     );
-    const s2 = rotateLocal(
-      point.x - perpX * sleeperLen,
-      point.y - perpY * sleeperLen,
-      rotation
-    );
+    topGradient.addColorStop(0, '#A08070');    // Light edge
+    topGradient.addColorStop(0.2, '#8D6E63');  // Main wood
+    topGradient.addColorStop(0.5, '#9C8068');  // Center highlight
+    topGradient.addColorStop(0.8, '#8D6E63');  // Main wood
+    topGradient.addColorStop(1, '#7D5F53');    // Dark edge
 
-    // Convert to isometric
-    const iso1 = localToIso(s1.x, s1.y);
-    const iso2 = localToIso(s2.x, s2.y);
-
-    const x1 = centerX + iso1.dx;
-    const y1 = centerY + iso1.dy + elevOffset;
-    const x2 = centerX + iso2.dx;
-    const y2 = centerY + iso2.dy + elevOffset;
-
-    // Draw shadow underneath sleeper
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-    ctx.lineWidth = 10;
-    ctx.lineCap = 'round';
+    ctx.fillStyle = topGradient;
     ctx.beginPath();
-    ctx.moveTo(x1, y1 + 2);
-    ctx.lineTo(x2, y2 + 2);
+    ctx.moveTo(isoCorners[0].x, isoCorners[0].y);
+    ctx.lineTo(isoCorners[1].x, isoCorners[1].y);
+    ctx.lineTo(isoCorners[2].x, isoCorners[2].y);
+    ctx.lineTo(isoCorners[3].x, isoCorners[3].y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw subtle edge lines for definition
+    ctx.strokeStyle = 'rgba(93, 64, 55, 0.4)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(isoCorners[0].x, isoCorners[0].y);
+    ctx.lineTo(isoCorners[1].x, isoCorners[1].y);
+    ctx.lineTo(isoCorners[2].x, isoCorners[2].y);
+    ctx.lineTo(isoCorners[3].x, isoCorners[3].y);
+    ctx.closePath();
     ctx.stroke();
 
-    // Create wood grain gradient along the sleeper
-    const sleeperGradient = ctx.createLinearGradient(x1, y1, x2, y2);
-    sleeperGradient.addColorStop(0, '#9C8068');    // Light edge
-    sleeperGradient.addColorStop(0.15, '#8D6E63'); // Main wood
-    sleeperGradient.addColorStop(0.3, '#7D5F53');  // Grain line
-    sleeperGradient.addColorStop(0.35, '#8D6E63'); // Main wood
-    sleeperGradient.addColorStop(0.5, '#9C8068');  // Center highlight
-    sleeperGradient.addColorStop(0.65, '#8D6E63'); // Main wood
-    sleeperGradient.addColorStop(0.7, '#7D5F53');  // Grain line
-    sleeperGradient.addColorStop(0.85, '#8D6E63'); // Main wood
-    sleeperGradient.addColorStop(1, '#6D4C41');    // Dark edge
-
-    // Main sleeper body
-    ctx.strokeStyle = sleeperGradient;
-    ctx.lineWidth = 8;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-
-    // Top highlight for 3D effect
-    ctx.strokeStyle = 'rgba(255, 248, 240, 0.35)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x1, y1 - 1);
-    ctx.lineTo(x2, y2 - 1);
-    ctx.stroke();
-
-    // Subtle wood grain lines (parallel to sleeper)
-    ctx.strokeStyle = 'rgba(93, 64, 55, 0.3)';
+    // Add subtle top highlight for polished toy wood look
+    ctx.strokeStyle = 'rgba(255, 248, 240, 0.3)';
     ctx.lineWidth = 1;
-    for (const grainOffset of [-2, 2]) {
-      ctx.beginPath();
-      ctx.moveTo(x1, y1 + grainOffset);
-      ctx.lineTo(x2, y2 + grainOffset);
-      ctx.stroke();
-    }
+    ctx.beginPath();
+    ctx.moveTo(isoCorners[0].x, isoCorners[0].y);
+    ctx.lineTo(isoCorners[1].x, isoCorners[1].y);
+    ctx.stroke();
   }
 }
 
-// Draw rails along a path with metallic sheen effect
+// Draw rails along a path with wooden toy track style
 function drawRails(
   ctx: CanvasRenderingContext2D,
   centerX: number,
@@ -315,7 +352,7 @@ function drawRails(
   // Collect rail points for gradient calculations
   const segments = 20;
 
-  // Draw two rails
+  // Draw two wooden rails (like ladder sides)
   for (const offset of [-railOffset, railOffset]) {
     const railPoints: { x: number; y: number }[] = [];
 
@@ -374,9 +411,9 @@ function drawRails(
     }
 
     // Draw shadow underneath rail first
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'butt';
     ctx.lineJoin = 'round';
     ctx.beginPath();
     railPoints.forEach((p, i) => {
@@ -385,18 +422,19 @@ function drawRails(
     });
     ctx.stroke();
 
-    // Draw main rail body with metallic gradient
-    // Create a vertical gradient for the "rounded rail" effect
+    // Draw main rail body with wood grain gradient
     const minY = Math.min(...railPoints.map(p => p.y));
     const maxY = Math.max(...railPoints.map(p => p.y));
-    const railGradient = ctx.createLinearGradient(0, minY - 3, 0, maxY + 3);
-    railGradient.addColorStop(0, '#8B7355');     // Bright top (light hitting)
-    railGradient.addColorStop(0.3, '#6D5843');   // Main body
-    railGradient.addColorStop(0.7, '#5D4037');   // Dark side
-    railGradient.addColorStop(1, '#3E2723');     // Bottom shadow
+    const railGradient = ctx.createLinearGradient(0, minY - 2, 0, maxY + 2);
+    // Polished wood tones - slightly lighter than sleepers for contrast
+    railGradient.addColorStop(0, '#B89880');     // Light wood top
+    railGradient.addColorStop(0.3, '#A08070');   // Main wood body
+    railGradient.addColorStop(0.7, '#8D6E63');   // Darker side
+    railGradient.addColorStop(1, '#6D4C41');     // Bottom shadow
 
     ctx.strokeStyle = railGradient;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'butt';
     ctx.beginPath();
     railPoints.forEach((p, i) => {
       if (i === 0) ctx.moveTo(p.x, p.y);
@@ -404,23 +442,23 @@ function drawRails(
     });
     ctx.stroke();
 
-    // Draw specular highlight (shiny top edge)
-    ctx.strokeStyle = 'rgba(255, 248, 230, 0.5)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    railPoints.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(p.x, p.y - 1);
-      else ctx.lineTo(p.x, p.y - 1);
-    });
-    ctx.stroke();
-
-    // Add subtle inner highlight for depth
-    ctx.strokeStyle = 'rgba(180, 160, 140, 0.3)';
+    // Draw polished wood highlight (top edge)
+    ctx.strokeStyle = 'rgba(255, 248, 240, 0.35)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     railPoints.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
+      if (i === 0) ctx.moveTo(p.x, p.y - 0.5);
+      else ctx.lineTo(p.x, p.y - 0.5);
+    });
+    ctx.stroke();
+
+    // Add subtle wood grain line along center
+    ctx.strokeStyle = 'rgba(93, 64, 55, 0.25)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    railPoints.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y + 0.5);
+      else ctx.lineTo(p.x, p.y + 0.5);
     });
     ctx.stroke();
   }
