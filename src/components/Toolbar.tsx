@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { TrackPalette } from './TrackPalette';
+import { TerrainPalette } from './TerrainPalette';
 import { SaveLoadModal } from './SaveLoadModal';
 import { HelpOverlay } from './HelpOverlay';
 import { SoundManager } from '../audio';
@@ -68,19 +69,18 @@ export function Toolbar() {
 
       <h3 style={styles.title}>Tools</h3>
 
-      <div style={styles.toolGrid}>
+      <div style={styles.toolRow}>
         {TOOLS.map((tool) => (
           <button
             key={tool.id}
             onClick={() => dispatch({ type: 'SET_TOOL', tool: tool.id })}
             style={{
-              ...styles.toolButton,
-              ...(state.selectedTool === tool.id ? styles.toolButtonActive : {}),
+              ...styles.iconButton,
+              ...(state.selectedTool === tool.id ? styles.iconButtonActive : {}),
             }}
             title={tool.label}
           >
-            <span style={styles.toolIcon}>{tool.icon}</span>
-            <span style={styles.toolLabel}>{tool.label}</span>
+            {tool.icon}
           </button>
         ))}
       </div>
@@ -88,6 +88,10 @@ export function Toolbar() {
       <div style={styles.divider} />
 
       <TrackPalette />
+
+      <div style={styles.divider} />
+
+      <TerrainPalette />
 
       <div style={styles.divider} />
 
@@ -243,33 +247,27 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     color: '#333',
   },
-  toolGrid: {
+  toolRow: {
     display: 'flex',
-    flexDirection: 'column',
     gap: '4px',
   },
-  toolButton: {
+  iconButton: {
+    width: '40px',
+    height: '40px',
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    padding: '8px 12px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
+    justifyContent: 'center',
+    border: '2px solid #ddd',
+    borderRadius: '6px',
     backgroundColor: 'white',
     cursor: 'pointer',
-    fontSize: '13px',
+    fontSize: '18px',
     transition: 'all 0.15s ease',
   },
-  toolButtonActive: {
+  iconButtonActive: {
     backgroundColor: '#4CAF50',
-    color: 'white',
     borderColor: '#4CAF50',
-  },
-  toolIcon: {
-    fontSize: '16px',
-  },
-  toolLabel: {
-    flex: 1,
+    boxShadow: '0 0 0 2px rgba(76, 175, 80, 0.3)',
   },
   divider: {
     height: '1px',

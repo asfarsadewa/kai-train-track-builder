@@ -332,6 +332,17 @@ export function GameCanvas() {
           });
           break;
         }
+        case 'terrain_paint': {
+          if (!state.selectedTerrainType) break;
+          dispatch({
+            type: 'SET_TERRAIN_TYPE',
+            x,
+            y,
+            terrainType: state.selectedTerrainType,
+          });
+          SoundManager.play('place');
+          break;
+        }
         case 'place_track': {
           if (!state.selectedTrackType) break;
 
@@ -451,6 +462,7 @@ export function GameCanvas() {
       state.hoveredCell,
       state.selectedTool,
       state.selectedTrackType,
+      state.selectedTerrainType,
       state.grid.cells,
       state.grid.width,
       state.grid.height,

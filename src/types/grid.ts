@@ -15,7 +15,15 @@ export interface ScreenPoint {
   py: number;
 }
 
-export type TerrainType = 'grass' | 'water' | 'sand' | 'rock';
+export type TerrainType =
+  | 'grass'
+  | 'water'
+  | 'sand'
+  | 'rock'
+  | 'forest'
+  | 'farm'
+  | 'village'
+  | 'flowers';
 
 export interface TerrainCell {
   elevation: number; // 0 = ground, 1+ = hill levels

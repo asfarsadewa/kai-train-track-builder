@@ -23,6 +23,26 @@ export const COLORS = {
       left: '#616161',
       right: '#757575',
     },
+    forest: {
+      top: '#2E7D32', // Dark green forest floor
+      left: '#1B5E20',
+      right: '#388E3C',
+    },
+    farm: {
+      top: '#C0CA33', // Yellow-green wheat field
+      left: '#9E9D24',
+      right: '#AFB42B',
+    },
+    village: {
+      top: '#A1887F', // Brown dirt/path
+      left: '#6D4C41',
+      right: '#8D6E63',
+    },
+    flowers: {
+      top: '#81C784', // Light green with flowers
+      left: '#4CAF50',
+      right: '#66BB6A',
+    },
     // Elevation cliff faces
     cliff: {
       light: '#8D6E63',

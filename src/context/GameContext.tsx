@@ -16,6 +16,7 @@ import type {
   TrainState,
   ToolType,
   TrackType,
+  TerrainType,
   CameraState,
   GridPosition,
 } from '../types';
@@ -27,8 +28,10 @@ export type GameAction =
   | { type: 'PLACE_TRACK'; track: TrackPiece }
   | { type: 'REMOVE_TRACK'; trackId: string }
   | { type: 'SET_TERRAIN_ELEVATION'; x: number; y: number; elevation: number }
+  | { type: 'SET_TERRAIN_TYPE'; x: number; y: number; terrainType: TerrainType }
   | { type: 'SET_TOOL'; tool: ToolType }
   | { type: 'SET_SELECTED_TRACK_TYPE'; trackType: TrackType | null }
+  | { type: 'SET_SELECTED_TERRAIN_TYPE'; terrainType: TerrainType | null }
   | { type: 'TOGGLE_PLAY' }
   | { type: 'SET_PLAYING'; isPlaying: boolean }
   | { type: 'UPDATE_TRAIN'; train: TrainState }
@@ -47,7 +50,7 @@ interface HistorySnapshot {
 }
 
 // Actions that should be recorded in history
-const UNDOABLE_ACTIONS = ['PLACE_TRACK', 'REMOVE_TRACK', 'SET_TERRAIN_ELEVATION', 'LOAD_LAYOUT', 'CLEAR_LAYOUT'];
+const UNDOABLE_ACTIONS = ['PLACE_TRACK', 'REMOVE_TRACK', 'SET_TERRAIN_ELEVATION', 'SET_TERRAIN_TYPE', 'LOAD_LAYOUT', 'CLEAR_LAYOUT'];
 
 // Initial state
 function createInitialState(): GameState {
@@ -57,6 +60,7 @@ function createInitialState(): GameState {
     train: null,
     selectedTool: 'select',
     selectedTrackType: null,
+    selectedTerrainType: null,
     isPlaying: false,
     camera: createDefaultCamera(),
     hoveredCell: null,
@@ -119,11 +123,28 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
+    case 'SET_TERRAIN_TYPE': {
+      const newCells = state.grid.cells.map((row, y) =>
+        row.map((cell, x) =>
+          x === action.x && y === action.y
+            ? { ...cell, terrainType: action.terrainType }
+            : cell
+        )
+      );
+      return {
+        ...state,
+        grid: { ...state.grid, cells: newCells },
+      };
+    }
+
     case 'SET_TOOL':
       return { ...state, selectedTool: action.tool };
 
     case 'SET_SELECTED_TRACK_TYPE':
       return { ...state, selectedTrackType: action.trackType };
+
+    case 'SET_SELECTED_TERRAIN_TYPE':
+      return { ...state, selectedTerrainType: action.terrainType };
 
     case 'TOGGLE_PLAY':
       return { ...state, isPlaying: !state.isPlaying };

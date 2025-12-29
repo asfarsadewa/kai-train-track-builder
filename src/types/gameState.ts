@@ -1,6 +1,6 @@
 // Overall game state type definitions
 
-import type { GameGrid, GridPosition } from './grid';
+import type { GameGrid, GridPosition, TerrainType } from './grid';
 import type { TrackPiece, TrackType } from './tracks';
 import type { TrainState } from './train';
 
@@ -10,7 +10,8 @@ export type ToolType =
   | 'remove'
   | 'terrain_raise'
   | 'terrain_lower'
-  | 'terrain_flatten';
+  | 'terrain_flatten'
+  | 'terrain_paint';
 
 export interface CameraState {
   offsetX: number;
@@ -24,6 +25,7 @@ export interface GameState {
   train: TrainState | null;
   selectedTool: ToolType;
   selectedTrackType: TrackType | null;
+  selectedTerrainType: TerrainType | null;
   isPlaying: boolean;
   camera: CameraState;
   hoveredCell: GridPosition | null;
