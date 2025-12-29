@@ -6,6 +6,7 @@ import {
   useReducer,
   useCallback,
   useRef,
+  useState,
   type ReactNode,
   type Dispatch,
 } from 'react';
@@ -283,9 +284,11 @@ const MAX_HISTORY = 50;
 export function GameProvider({ children }: GameProviderProps) {
   const [state, baseDispatch] = useReducer(gameReducer, null, createInitialState);
 
-  // History stacks
+  // History stacks (refs for storage, state for reactivity)
   const undoStackRef = useRef<HistorySnapshot[]>([]);
   const redoStackRef = useRef<HistorySnapshot[]>([]);
+  const [undoCount, setUndoCount] = useState(0);
+  const [redoCount, setRedoCount] = useState(0);
 
   // Wrapped dispatch that tracks history
   const dispatch = useCallback((action: GameAction) => {
@@ -295,8 +298,10 @@ export function GameProvider({ children }: GameProviderProps) {
       if (undoStackRef.current.length > MAX_HISTORY) {
         undoStackRef.current.shift();
       }
+      setUndoCount(undoStackRef.current.length);
       // Clear redo stack on new action
       redoStackRef.current = [];
+      setRedoCount(0);
     }
     baseDispatch(action);
   }, [state]);
@@ -311,6 +316,10 @@ export function GameProvider({ children }: GameProviderProps) {
     // Restore previous state
     const snapshot = undoStackRef.current.pop()!;
     baseDispatch({ type: 'RESTORE_SNAPSHOT', snapshot });
+
+    // Update counts
+    setUndoCount(undoStackRef.current.length);
+    setRedoCount(redoStackRef.current.length);
   }, [state]);
 
   // Redo function
@@ -323,12 +332,14 @@ export function GameProvider({ children }: GameProviderProps) {
     // Restore next state
     const snapshot = redoStackRef.current.pop()!;
     baseDispatch({ type: 'RESTORE_SNAPSHOT', snapshot });
+
+    // Update counts
+    setUndoCount(undoStackRef.current.length);
+    setRedoCount(redoStackRef.current.length);
   }, [state]);
 
-  // eslint-disable-next-line react-hooks/refs
-  const canUndo = undoStackRef.current.length > 0;
-  // eslint-disable-next-line react-hooks/refs
-  const canRedo = redoStackRef.current.length > 0;
+  const canUndo = undoCount > 0;
+  const canRedo = redoCount > 0;
 
   return (
     <GameContext.Provider value={{

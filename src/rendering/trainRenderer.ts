@@ -1391,13 +1391,22 @@ export function drawEvilCarriage(
       ctx.arc(0, baseOffset - bodyDepth - 4, 5, 0, Math.PI * 2);
       ctx.fill();
 
-      const cupolaWindowGradient = ctx.createRadialGradient(0, baseOffset - bodyDepth - 4, 0, 0, baseOffset - bodyDepth - 4, 3);
+      // Cupola window center
+      const windowX = 0;
+      const windowY = baseOffset - bodyDepth - 4;
+
+      ctx.save();
+      ctx.translate(windowX, windowY);
+      ctx.rotate(rotation);
+
+      // Create gradient relative to translated origin
+      const cupolaWindowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 3);
       cupolaWindowGradient.addColorStop(0, '#ff3333');
       cupolaWindowGradient.addColorStop(1, '#660000');
       ctx.fillStyle = cupolaWindowGradient;
-      ctx.save();
-      ctx.rotate(rotation);
-      ctx.fillRect(-2, baseOffset - bodyDepth - 5.5, 4, 3);
+
+      // Draw window centered at origin
+      ctx.fillRect(-2, -1.5, 4, 3);
       ctx.restore();
     }
   } else if (type === 'tanker') {
