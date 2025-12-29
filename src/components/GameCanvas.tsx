@@ -599,6 +599,10 @@ export function GameCanvas() {
   const isDraggingRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
 
+  // Handle left mouse drag for placing items
+  const isPlacingRef = useRef(false);
+  const lastPlacedCellRef = useRef<{ x: number; y: number } | null>(null);
+
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
       // Middle mouse button or right click for panning
@@ -607,13 +611,147 @@ export function GameCanvas() {
         isDraggingRef.current = true;
         lastMousePosRef.current = { x: e.clientX, y: e.clientY };
       }
+      // Left click for placing - enable drag-to-place for supported tools
+      if (e.button === 0) {
+        const draggableTools = ['terrain_raise', 'terrain_lower', 'terrain_paint', 'place_track', 'remove'];
+        if (draggableTools.includes(state.selectedTool)) {
+          isPlacingRef.current = true;
+          lastPlacedCellRef.current = null; // Reset so first cell gets placed
+        }
+      }
     },
-    []
+    [state.selectedTool]
   );
 
   const handleMouseUp = useCallback(() => {
     isDraggingRef.current = false;
+    isPlacingRef.current = false;
+    lastPlacedCellRef.current = null;
   }, []);
+
+  // Place item at a specific cell (used by both click and drag)
+  const placeAtCell = useCallback(
+    (x: number, y: number) => {
+      // Handle different tool actions
+      switch (state.selectedTool) {
+        case 'terrain_raise': {
+          const currentElevation = state.grid.cells[y][x].elevation;
+          dispatch({
+            type: 'SET_TERRAIN_ELEVATION',
+            x,
+            y,
+            elevation: currentElevation + 1,
+          });
+          break;
+        }
+        case 'terrain_lower': {
+          const currentElevation = state.grid.cells[y][x].elevation;
+          dispatch({
+            type: 'SET_TERRAIN_ELEVATION',
+            x,
+            y,
+            elevation: Math.max(0, currentElevation - 1),
+          });
+          break;
+        }
+        case 'terrain_paint': {
+          if (!state.selectedTerrainType) break;
+          dispatch({
+            type: 'SET_TERRAIN_TYPE',
+            x,
+            y,
+            terrainType: state.selectedTerrainType,
+          });
+          SoundManager.play('place');
+          break;
+        }
+        case 'place_track': {
+          if (!state.selectedTrackType) break;
+
+          // Check if we can place here
+          const validation = canPlaceTrack(
+            { x, y },
+            state.tracks,
+            state.grid.width,
+            state.grid.height
+          );
+
+          if (!validation.canPlace) {
+            break;
+          }
+
+          // Get terrain elevation at this position
+          const terrainElevation = state.grid.cells[y][x].elevation;
+
+          // Calculate best rotation for auto-connect
+          const { rotation, elevation } = calculateBestRotation(
+            state.selectedTrackType,
+            { x, y },
+            state.tracks,
+            terrainElevation
+          );
+
+          // For bridges and tunnels, use neighbor track/terrain elevation
+          let finalElevation = elevation;
+          if (state.selectedTrackType === 'bridge' || state.selectedTrackType === 'tunnel_entrance') {
+            const neighbors = findConnectableNeighbors({ x, y }, state.tracks);
+            if (neighbors.length > 0) {
+              finalElevation = neighbors[0].track.elevation;
+            } else {
+              let maxNeighborElevation = terrainElevation;
+              const offsets = [
+                { dx: 0, dy: -1 },
+                { dx: 1, dy: 0 },
+                { dx: 0, dy: 1 },
+                { dx: -1, dy: 0 },
+              ];
+              for (const { dx, dy } of offsets) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (nx >= 0 && nx < state.grid.width && ny >= 0 && ny < state.grid.height) {
+                  const neighborTerrain = state.grid.cells[ny][nx].elevation;
+                  maxNeighborElevation = Math.max(maxNeighborElevation, neighborTerrain);
+                }
+              }
+              finalElevation = maxNeighborElevation;
+            }
+          }
+
+          // Create new track piece
+          const newTrack: TrackPiece = {
+            id: generateId(),
+            type: state.selectedTrackType,
+            position: { x, y },
+            rotation,
+            elevation: finalElevation,
+            connections: [],
+          };
+
+          dispatch({ type: 'PLACE_TRACK', track: newTrack });
+          SoundManager.play('place');
+          break;
+        }
+        case 'remove': {
+          const trackToRemove = findTrackAtPosition(state.tracks, { x, y });
+          if (trackToRemove) {
+            dispatch({ type: 'REMOVE_TRACK', trackId: trackToRemove.id });
+            SoundManager.play('remove');
+          }
+          break;
+        }
+      }
+    },
+    [
+      state.selectedTool,
+      state.selectedTrackType,
+      state.selectedTerrainType,
+      state.grid.cells,
+      state.grid.width,
+      state.grid.height,
+      state.tracks,
+      dispatch,
+    ]
+  );
 
   // Handle mouse move for hover detection and panning
   const handleMouseMove = useCallback(
@@ -667,13 +805,25 @@ export function GameCanvas() {
       );
 
       dispatch({ type: 'SET_HOVERED_CELL', cell });
+
+      // Handle drag-to-place
+      if (isPlacingRef.current && cell) {
+        // Only place if we moved to a new cell
+        const lastCell = lastPlacedCellRef.current;
+        if (!lastCell || lastCell.x !== cell.x || lastCell.y !== cell.y) {
+          placeAtCell(cell.x, cell.y);
+          lastPlacedCellRef.current = { x: cell.x, y: cell.y };
+        }
+      }
     },
-    [dispatch, state.camera, state.grid]
+    [dispatch, state.camera, state.grid, placeAtCell]
   );
 
   // Handle mouse leave
   const handleMouseLeave = useCallback(() => {
     dispatch({ type: 'SET_HOVERED_CELL', cell: null });
+    isPlacingRef.current = false;
+    lastPlacedCellRef.current = null;
   }, [dispatch]);
 
   // Handle click
@@ -683,165 +833,45 @@ export function GameCanvas() {
 
       const { x, y } = state.hoveredCell;
 
-      // Handle different tool actions
-      switch (state.selectedTool) {
-        case 'terrain_raise': {
-          const currentElevation = state.grid.cells[y][x].elevation;
-          dispatch({
-            type: 'SET_TERRAIN_ELEVATION',
-            x,
-            y,
-            elevation: currentElevation + 1,
-          });
-          break;
-        }
-        case 'terrain_lower': {
-          const currentElevation = state.grid.cells[y][x].elevation;
-          dispatch({
-            type: 'SET_TERRAIN_ELEVATION',
-            x,
-            y,
-            elevation: Math.max(0, currentElevation - 1),
-          });
-          break;
-        }
-        case 'terrain_paint': {
-          if (!state.selectedTerrainType) break;
-          dispatch({
-            type: 'SET_TERRAIN_TYPE',
-            x,
-            y,
-            terrainType: state.selectedTerrainType,
-          });
-          SoundManager.play('place');
-          break;
-        }
-        case 'place_track': {
-          if (!state.selectedTrackType) break;
+      // For draggable tools, use placeAtCell
+      const draggableTools = ['terrain_raise', 'terrain_lower', 'terrain_paint', 'place_track', 'remove'];
+      if (draggableTools.includes(state.selectedTool)) {
+        placeAtCell(x, y);
+        return;
+      }
 
-          // Check if we can place here
-          const validation = canPlaceTrack(
-            { x, y },
-            state.tracks,
-            state.grid.width,
-            state.grid.height
-          );
-
-          if (!validation.canPlace) {
-            console.log('Cannot place:', validation.reason);
-            break;
+      // Handle select tool separately (toggling switches/signals)
+      if (state.selectedTool === 'select') {
+        const trackToToggle = findTrackAtPosition(state.tracks, { x, y });
+        if (trackToToggle) {
+          if (
+            trackToToggle.type === 'switch_left' ||
+            trackToToggle.type === 'switch_right'
+          ) {
+            const newState =
+              trackToToggle.switchState === 'left' ? 'right' : 'left';
+            const updatedTrack: TrackPiece = {
+              ...trackToToggle,
+              switchState: newState,
+            };
+            dispatch({ type: 'REMOVE_TRACK', trackId: trackToToggle.id });
+            dispatch({ type: 'PLACE_TRACK', track: updatedTrack });
+            SoundManager.play('click');
+          } else if (trackToToggle.type === 'signal') {
+            const newState =
+              trackToToggle.signalState === 'green' ? 'red' : 'green';
+            const updatedTrack: TrackPiece = {
+              ...trackToToggle,
+              signalState: newState,
+            };
+            dispatch({ type: 'REMOVE_TRACK', trackId: trackToToggle.id });
+            dispatch({ type: 'PLACE_TRACK', track: updatedTrack });
+            SoundManager.play('click');
           }
-
-          // Get terrain elevation at this position
-          const terrainElevation = state.grid.cells[y][x].elevation;
-
-          // Calculate best rotation for auto-connect
-          const { rotation, elevation } = calculateBestRotation(
-            state.selectedTrackType,
-            { x, y },
-            state.tracks,
-            terrainElevation
-          );
-
-          // For bridges and tunnels, use neighbor track/terrain elevation instead of local terrain
-          // This allows bridges to span gaps at elevated height
-          let finalElevation = elevation;
-          if (state.selectedTrackType === 'bridge' || state.selectedTrackType === 'tunnel_entrance') {
-            const neighbors = findConnectableNeighbors({ x, y }, state.tracks);
-            if (neighbors.length > 0) {
-              // Use the elevation of the first connecting neighbor track
-              finalElevation = neighbors[0].track.elevation;
-            } else {
-              // No neighbor tracks - check neighbor terrain elevations
-              // Use the maximum elevation of adjacent terrain tiles
-              let maxNeighborElevation = terrainElevation;
-              const offsets = [
-                { dx: 0, dy: -1 }, // N
-                { dx: 1, dy: 0 },  // E
-                { dx: 0, dy: 1 },  // S
-                { dx: -1, dy: 0 }, // W
-              ];
-              for (const { dx, dy } of offsets) {
-                const nx = x + dx;
-                const ny = y + dy;
-                if (nx >= 0 && nx < state.grid.width && ny >= 0 && ny < state.grid.height) {
-                  const neighborTerrain = state.grid.cells[ny][nx].elevation;
-                  maxNeighborElevation = Math.max(maxNeighborElevation, neighborTerrain);
-                }
-              }
-              finalElevation = maxNeighborElevation;
-            }
-          }
-
-          // Create new track piece
-          const newTrack: TrackPiece = {
-            id: generateId(),
-            type: state.selectedTrackType,
-            position: { x, y },
-            rotation,
-            elevation: finalElevation,
-            connections: [],
-          };
-
-          dispatch({ type: 'PLACE_TRACK', track: newTrack });
-          SoundManager.play('place');
-          break;
-        }
-        case 'remove': {
-          // Find track at this position
-          const trackToRemove = findTrackAtPosition(state.tracks, { x, y });
-          if (trackToRemove) {
-            dispatch({ type: 'REMOVE_TRACK', trackId: trackToRemove.id });
-            SoundManager.play('remove');
-          }
-          break;
-        }
-        case 'select': {
-          // Toggle switch or signal state
-          const trackToToggle = findTrackAtPosition(state.tracks, { x, y });
-          if (trackToToggle) {
-            if (
-              trackToToggle.type === 'switch_left' ||
-              trackToToggle.type === 'switch_right'
-            ) {
-              // Toggle switch
-              const newState =
-                trackToToggle.switchState === 'left' ? 'right' : 'left';
-              const updatedTrack: TrackPiece = {
-                ...trackToToggle,
-                switchState: newState,
-              };
-              dispatch({ type: 'REMOVE_TRACK', trackId: trackToToggle.id });
-              dispatch({ type: 'PLACE_TRACK', track: updatedTrack });
-              SoundManager.play('click');
-            } else if (trackToToggle.type === 'signal') {
-              // Toggle signal
-              const newState =
-                trackToToggle.signalState === 'green' ? 'red' : 'green';
-              const updatedTrack: TrackPiece = {
-                ...trackToToggle,
-                signalState: newState,
-              };
-              dispatch({ type: 'REMOVE_TRACK', trackId: trackToToggle.id });
-              dispatch({ type: 'PLACE_TRACK', track: updatedTrack });
-              SoundManager.play('click');
-            }
-          }
-          break;
         }
       }
     },
-    [
-      state.hoveredCell,
-      state.selectedTool,
-      state.selectedTrackType,
-      state.selectedTerrainType,
-      state.grid.cells,
-      state.grid.width,
-      state.grid.height,
-      state.tracks,
-      dispatch,
-    ]
+    [state.hoveredCell, state.selectedTool, state.tracks, dispatch, placeAtCell]
   );
 
   // Get elevation for info overlay
