@@ -346,15 +346,16 @@ export function GameCanvas() {
             break;
           }
 
-          // Calculate best rotation for auto-connect
-          const { rotation } = calculateBestRotation(
+          // Get terrain elevation at this position
+          const terrainElevation = state.grid.cells[y][x].elevation;
+
+          // Calculate best rotation for auto-connect (also determines elevation for slopes)
+          const { rotation, elevation } = calculateBestRotation(
             state.selectedTrackType,
             { x, y },
-            state.tracks
+            state.tracks,
+            terrainElevation
           );
-
-          // Get terrain elevation at this position
-          const elevation = state.grid.cells[y][x].elevation;
 
           // Create new track piece
           const newTrack: TrackPiece = {

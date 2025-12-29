@@ -1,8 +1,20 @@
 // Track rendering utilities - wooden toy train aesthetic
 
-import type { TrackPiece, Rotation } from '../types';
+import type { TrackPiece, Rotation, CardinalDirection, GameGrid } from '../types';
 import { gridToScreen } from './isometric';
-import { TILE_WIDTH, TILE_HEIGHT, COLORS } from '../constants';
+import { TILE_WIDTH, TILE_HEIGHT, COLORS, ELEVATION_HEIGHT } from '../constants';
+import { rotateDirection, DIRECTION_OFFSETS } from '../types';
+
+/**
+ * Information about elevation at each connection point of a track.
+ * Used for rendering slopes between different terrain elevations.
+ */
+export interface ConnectionElevations {
+  N?: number;
+  E?: number;
+  S?: number;
+  W?: number;
+}
 
 // Track path definitions for drawing
 // Each path is defined as bezier control points in tile-local coordinates (0-1 range)
@@ -78,6 +90,70 @@ function localToIso(localX: number, localY: number): { dx: number; dy: number } 
   return { dx: isoX, dy: isoY };
 }
 
+/**
+ * Get the direction a local coordinate is closest to.
+ * Used to determine which connection point's elevation to use.
+ */
+function getDirectionFromLocal(localX: number, localY: number): CardinalDirection {
+  // Corners: N=(0.5,0), E=(1,0.5), S=(0.5,1), W=(0,0.5)
+  const dN = Math.abs(localX - 0.5) + Math.abs(localY - 0);
+  const dE = Math.abs(localX - 1) + Math.abs(localY - 0.5);
+  const dS = Math.abs(localX - 0.5) + Math.abs(localY - 1);
+  const dW = Math.abs(localX - 0) + Math.abs(localY - 0.5);
+
+  const min = Math.min(dN, dE, dS, dW);
+  if (min === dN) return 'N';
+  if (min === dE) return 'E';
+  if (min === dS) return 'S';
+  return 'W';
+}
+
+/**
+ * Calculate the elevation offset at a point along a path.
+ * Returns the Y offset in pixels to add for elevation interpolation.
+ */
+function getElevationOffsetAtPoint(
+  localX: number,
+  localY: number,
+  path: TrackPath,
+  rotation: Rotation,
+  trackElevation: number,
+  connectionElevations: ConnectionElevations
+): number {
+  // Determine which directions this path connects (in base orientation)
+  const startDir = getDirectionFromLocal(path.start.x, path.start.y);
+  const endDir = getDirectionFromLocal(path.end.x, path.end.y);
+
+  // Apply rotation to get actual directions
+  const actualStartDir = rotateDirection(startDir, rotation);
+  const actualEndDir = rotateDirection(endDir, rotation);
+
+  // Get elevations at each end
+  const startElevation = connectionElevations[actualStartDir] ?? trackElevation;
+  const endElevation = connectionElevations[actualEndDir] ?? trackElevation;
+
+  // If no elevation difference, no offset needed
+  if (startElevation === endElevation && startElevation === trackElevation) {
+    return 0;
+  }
+
+  // Calculate how far along the path this point is (0 = start, 1 = end)
+  // Use distance from start vs distance from end
+  const dStart = Math.sqrt(
+    Math.pow(localX - path.start.x, 2) + Math.pow(localY - path.start.y, 2)
+  );
+  const dEnd = Math.sqrt(
+    Math.pow(localX - path.end.x, 2) + Math.pow(localY - path.end.y, 2)
+  );
+  const t = dStart / (dStart + dEnd + 0.001); // 0 at start, 1 at end
+
+  // Interpolate elevation
+  const elevationAtPoint = startElevation + (endElevation - startElevation) * t;
+
+  // Return the Y offset (negative because higher elevation = lower Y in screen space)
+  return -(elevationAtPoint - trackElevation) * ELEVATION_HEIGHT;
+}
+
 // Rotate a local coordinate by rotation degrees
 function rotateLocal(
   x: number,
@@ -110,6 +186,8 @@ function drawSleepers(
   centerY: number,
   path: TrackPath,
   rotation: Rotation,
+  trackElevation: number,
+  connectionElevations: ConnectionElevations,
   numSleepers: number = 5
 ) {
   ctx.strokeStyle = COLORS.track.sleeper;
@@ -139,6 +217,16 @@ function drawSleepers(
       };
     }
 
+    // Calculate elevation offset at this point
+    const elevOffset = getElevationOffsetAtPoint(
+      point.x,
+      point.y,
+      path,
+      rotation,
+      trackElevation,
+      connectionElevations
+    );
+
     // Calculate perpendicular for sleeper orientation
     const len = Math.sqrt(tangent.x * tangent.x + tangent.y * tangent.y);
     const perpX = -tangent.y / len;
@@ -162,8 +250,8 @@ function drawSleepers(
     const iso2 = localToIso(s2.x, s2.y);
 
     ctx.beginPath();
-    ctx.moveTo(centerX + iso1.dx, centerY + iso1.dy);
-    ctx.lineTo(centerX + iso2.dx, centerY + iso2.dy);
+    ctx.moveTo(centerX + iso1.dx, centerY + iso1.dy + elevOffset);
+    ctx.lineTo(centerX + iso2.dx, centerY + iso2.dy + elevOffset);
     ctx.stroke();
   }
 }
@@ -174,7 +262,9 @@ function drawRails(
   centerX: number,
   centerY: number,
   path: TrackPath,
-  rotation: Rotation
+  rotation: Rotation,
+  trackElevation: number,
+  connectionElevations: ConnectionElevations
 ) {
   const railOffset = 0.06; // Distance from center to each rail
 
@@ -208,6 +298,16 @@ function drawRails(
         };
       }
 
+      // Calculate elevation offset at this point
+      const elevOffset = getElevationOffsetAtPoint(
+        point.x,
+        point.y,
+        path,
+        rotation,
+        trackElevation,
+        connectionElevations
+      );
+
       // Calculate perpendicular offset
       const len = Math.sqrt(tangent.x * tangent.x + tangent.y * tangent.y);
       const perpX = -tangent.y / len;
@@ -226,9 +326,9 @@ function drawRails(
       const iso = localToIso(rotated.x, rotated.y);
 
       if (i === 0) {
-        ctx.moveTo(centerX + iso.dx, centerY + iso.dy);
+        ctx.moveTo(centerX + iso.dx, centerY + iso.dy + elevOffset);
       } else {
-        ctx.lineTo(centerX + iso.dx, centerY + iso.dy);
+        ctx.lineTo(centerX + iso.dx, centerY + iso.dy + elevOffset);
       }
     }
 
@@ -283,7 +383,8 @@ export function drawTrack(
   ctx: CanvasRenderingContext2D,
   track: TrackPiece,
   originX: number,
-  originY: number
+  originY: number,
+  connectionElevations: ConnectionElevations = {}
 ) {
   const paths = TRACK_PATHS[track.type];
   if (!paths) return;
@@ -295,9 +396,9 @@ export function drawTrack(
   // Draw each path
   for (const path of paths) {
     // Draw sleepers first (underneath)
-    drawSleepers(ctx, centerX, centerY, path, track.rotation);
+    drawSleepers(ctx, centerX, centerY, path, track.rotation, track.elevation, connectionElevations);
     // Draw rails on top
-    drawRails(ctx, centerX, centerY, path, track.rotation);
+    drawRails(ctx, centerX, centerY, path, track.rotation, track.elevation, connectionElevations);
   }
 
   // Draw special decorations for certain track types
@@ -386,12 +487,69 @@ function drawSignal(
   ctx.fill();
 }
 
+/**
+ * Get the terrain elevation at a neighbor position.
+ * Returns undefined if the position is out of bounds.
+ */
+function getNeighborTerrainElevation(
+  grid: GameGrid,
+  x: number,
+  y: number,
+  direction: CardinalDirection
+): number | undefined {
+  const offset = DIRECTION_OFFSETS[direction];
+  const nx = x + offset.x;
+  const ny = y + offset.y;
+
+  // Check bounds
+  if (nx < 0 || nx >= grid.width || ny < 0 || ny >= grid.height) {
+    return undefined;
+  }
+
+  return grid.cells[ny][nx].elevation;
+}
+
+/**
+ * Calculate connection elevations for a track based on neighbor terrain.
+ * At each edge, we use the MIDPOINT between the track's elevation and the neighbor's.
+ * This ensures adjacent tracks meet at the same height at tile boundaries.
+ */
+function calculateConnectionElevations(
+  track: TrackPiece,
+  grid: GameGrid
+): ConnectionElevations {
+  const elevations: ConnectionElevations = {};
+  const directions: CardinalDirection[] = ['N', 'E', 'S', 'W'];
+  const trackElev = track.elevation;
+
+  for (const dir of directions) {
+    const neighborElev = getNeighborTerrainElevation(
+      grid,
+      track.position.x,
+      track.position.y,
+      dir
+    );
+
+    if (neighborElev !== undefined) {
+      // Use midpoint between track elevation and neighbor elevation
+      // This ensures adjacent tracks meet at the same height at boundaries
+      elevations[dir] = (trackElev + neighborElev) / 2;
+    } else {
+      // Out of bounds - use track's own elevation
+      elevations[dir] = trackElev;
+    }
+  }
+
+  return elevations;
+}
+
 // Render all tracks
 export function renderTracks(
   ctx: CanvasRenderingContext2D,
   tracks: Map<string, TrackPiece>,
   originX: number,
-  originY: number
+  originY: number,
+  grid: GameGrid
 ) {
   // Sort tracks by depth for correct rendering order
   const sortedTracks = Array.from(tracks.values()).sort((a, b) => {
@@ -401,6 +559,8 @@ export function renderTracks(
   });
 
   for (const track of sortedTracks) {
-    drawTrack(ctx, track, originX, originY);
+    // Calculate what elevation the track should slope to at each edge
+    const connectionElevations = calculateConnectionElevations(track, grid);
+    drawTrack(ctx, track, originX, originY, connectionElevations);
   }
 }

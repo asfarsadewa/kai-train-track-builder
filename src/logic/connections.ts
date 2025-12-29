@@ -16,6 +16,20 @@ import {
 import { TRACK_DEFINITIONS } from '../constants';
 
 /**
+ * Get the elevation at a specific connection point of a track.
+ * Since tracks auto-adapt to terrain, connection elevation = track elevation = terrain elevation.
+ * The visual rendering will handle slopes between different terrain elevations.
+ */
+export function getElevationAtConnection(
+  track: TrackPiece,
+  _direction: CardinalDirection
+): number {
+  // All connection points are at the track's base elevation (= terrain elevation)
+  // Visual slope rendering handles elevation differences to neighbors
+  return track.elevation;
+}
+
+/**
  * Get the neighbor position in a given direction
  */
 export function getNeighborPosition(
@@ -74,7 +88,8 @@ export function hasConnectionInDirection(
 }
 
 /**
- * Find all neighboring tracks that could connect
+ * Find all neighboring tracks that could connect (direction-only, no elevation check)
+ * Used for auto-rotation calculation where elevation isn't known yet
  */
 export function findConnectableNeighbors(
   position: GridPosition,
@@ -99,15 +114,17 @@ export function findConnectableNeighbors(
 }
 
 /**
- * Calculate the best rotation for a track type to connect to neighbors
+ * Calculate the best rotation for a track type to connect to neighbors.
+ * Track elevation is always set to terrain elevation (tracks auto-adapt visually).
  */
 export function calculateBestRotation(
   trackType: TrackType,
   position: GridPosition,
-  tracks: Map<string, TrackPiece>
-): { rotation: Rotation; connectionCount: number } {
+  tracks: Map<string, TrackPiece>,
+  terrainElevation: number = 0
+): { rotation: Rotation; connectionCount: number; elevation: number } {
   const def = TRACK_DEFINITIONS[trackType];
-  if (!def) return { rotation: 0, connectionCount: 0 };
+  if (!def) return { rotation: 0, connectionCount: 0, elevation: terrainElevation };
 
   const neighbors = findConnectableNeighbors(position, tracks);
   const rotations: Rotation[] = [0, 90, 180, 270];
@@ -139,7 +156,8 @@ export function calculateBestRotation(
     }
   }
 
-  return { rotation: bestRotation, connectionCount: bestScore };
+  // Track elevation is always terrain elevation - visual rendering handles slopes
+  return { rotation: bestRotation, connectionCount: bestScore, elevation: terrainElevation };
 }
 
 /**
@@ -172,6 +190,8 @@ export function canPlaceTrack(
 
 /**
  * Get connected tracks (for pathfinding)
+ * Tracks connect if they have facing connection directions.
+ * Elevation differences are handled visually by the renderer.
  */
 export function getConnectedTracks(
   track: TrackPiece,

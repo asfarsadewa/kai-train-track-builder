@@ -90,16 +90,27 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'SET_TERRAIN_ELEVATION': {
+      const newElevation = Math.max(0, action.elevation);
       const newCells = state.grid.cells.map((row, y) =>
         row.map((cell, x) =>
           x === action.x && y === action.y
-            ? { ...cell, elevation: Math.max(0, action.elevation) }
+            ? { ...cell, elevation: newElevation }
             : cell
         )
       );
+
+      // Also update any track at this position to match the new terrain elevation
+      const newTracks = new Map(state.tracks);
+      for (const [id, track] of newTracks) {
+        if (track.position.x === action.x && track.position.y === action.y) {
+          newTracks.set(id, { ...track, elevation: newElevation });
+        }
+      }
+
       return {
         ...state,
         grid: { ...state.grid, cells: newCells },
+        tracks: newTracks,
       };
     }
 

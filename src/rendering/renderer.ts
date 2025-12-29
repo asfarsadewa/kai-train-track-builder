@@ -63,8 +63,8 @@ export function render(
   // Render terrain grid
   renderTerrain(ctx, state.grid, originX, originY);
 
-  // Render tracks
-  renderTracks(ctx, state.tracks, originX, originY);
+  // Render tracks (pass grid for elevation-aware slope rendering)
+  renderTracks(ctx, state.tracks, originX, originY, state.grid);
 
   // Render custom overlay (train, etc.)
   if (onDrawOverlay) {
