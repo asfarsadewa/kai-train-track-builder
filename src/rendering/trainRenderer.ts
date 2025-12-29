@@ -103,10 +103,31 @@ function draw3DBox(
 }
 
 /**
+ * Normalize hex color to 6-character format
+ * Handles 3-character shorthand (e.g., "#fff" -> "ffffff")
+ */
+function normalizeHex(hex: string): string {
+  let h = hex.trim().replace(/^#/, '');
+
+  // Expand 3-character shorthand to 6 characters
+  if (h.length === 3) {
+    h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  }
+
+  // Validate length
+  if (h.length !== 6) {
+    return '000000'; // Fallback to black for invalid input
+  }
+
+  return h;
+}
+
+/**
  * Helper to lighten a hex color
  */
 function lightenHex(hex: string, percent: number): string {
-  const num = parseInt(hex.replace('#', ''), 16);
+  const h = normalizeHex(hex);
+  const num = parseInt(h, 16);
   const r = Math.min(255, (num >> 16) + Math.round(2.55 * percent));
   const g = Math.min(255, ((num >> 8) & 0x00ff) + Math.round(2.55 * percent));
   const b = Math.min(255, (num & 0x0000ff) + Math.round(2.55 * percent));
@@ -117,7 +138,8 @@ function lightenHex(hex: string, percent: number): string {
  * Helper to darken a hex color
  */
 function darkenHex(hex: string, percent: number): string {
-  const num = parseInt(hex.replace('#', ''), 16);
+  const h = normalizeHex(hex);
+  const num = parseInt(h, 16);
   const r = Math.max(0, (num >> 16) - Math.round(2.55 * percent));
   const g = Math.max(0, ((num >> 8) & 0x00ff) - Math.round(2.55 * percent));
   const b = Math.max(0, (num & 0x0000ff) - Math.round(2.55 * percent));
