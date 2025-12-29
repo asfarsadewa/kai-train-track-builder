@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"C:\\\\Users\\\\asfar\\\\repo\\\\kai\\\\kai-train-track-builder\" /B)",
+      "Bash(dir \"C:\\\\Users\\\\asfar\\\\repo\\\\kai\\\\kai-train-track-builder\\\\src\" /B /S)"
+    ]
+  }
+}
