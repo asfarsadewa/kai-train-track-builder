@@ -179,7 +179,7 @@ function rotateLocal(
   return { x: newX + cx, y: newY + cy };
 }
 
-// Draw wooden sleepers along a path
+// Draw wooden sleepers along a path with wood grain effect
 function drawSleepers(
   ctx: CanvasRenderingContext2D,
   centerX: number,
@@ -190,10 +190,6 @@ function drawSleepers(
   connectionElevations: ConnectionElevations,
   numSleepers: number = 5
 ) {
-  ctx.strokeStyle = COLORS.track.sleeper;
-  ctx.lineWidth = 8;
-  ctx.lineCap = 'round';
-
   for (let i = 0; i < numSleepers; i++) {
     const t = (i + 0.5) / numSleepers;
 
@@ -249,14 +245,62 @@ function drawSleepers(
     const iso1 = localToIso(s1.x, s1.y);
     const iso2 = localToIso(s2.x, s2.y);
 
+    const x1 = centerX + iso1.dx;
+    const y1 = centerY + iso1.dy + elevOffset;
+    const x2 = centerX + iso2.dx;
+    const y2 = centerY + iso2.dy + elevOffset;
+
+    // Draw shadow underneath sleeper
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.lineWidth = 10;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(centerX + iso1.dx, centerY + iso1.dy + elevOffset);
-    ctx.lineTo(centerX + iso2.dx, centerY + iso2.dy + elevOffset);
+    ctx.moveTo(x1, y1 + 2);
+    ctx.lineTo(x2, y2 + 2);
     ctx.stroke();
+
+    // Create wood grain gradient along the sleeper
+    const sleeperGradient = ctx.createLinearGradient(x1, y1, x2, y2);
+    sleeperGradient.addColorStop(0, '#9C8068');    // Light edge
+    sleeperGradient.addColorStop(0.15, '#8D6E63'); // Main wood
+    sleeperGradient.addColorStop(0.3, '#7D5F53');  // Grain line
+    sleeperGradient.addColorStop(0.35, '#8D6E63'); // Main wood
+    sleeperGradient.addColorStop(0.5, '#9C8068');  // Center highlight
+    sleeperGradient.addColorStop(0.65, '#8D6E63'); // Main wood
+    sleeperGradient.addColorStop(0.7, '#7D5F53');  // Grain line
+    sleeperGradient.addColorStop(0.85, '#8D6E63'); // Main wood
+    sleeperGradient.addColorStop(1, '#6D4C41');    // Dark edge
+
+    // Main sleeper body
+    ctx.strokeStyle = sleeperGradient;
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    // Top highlight for 3D effect
+    ctx.strokeStyle = 'rgba(255, 248, 240, 0.35)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1 - 1);
+    ctx.lineTo(x2, y2 - 1);
+    ctx.stroke();
+
+    // Subtle wood grain lines (parallel to sleeper)
+    ctx.strokeStyle = 'rgba(93, 64, 55, 0.3)';
+    ctx.lineWidth = 1;
+    for (const grainOffset of [-2, 2]) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1 + grainOffset);
+      ctx.lineTo(x2, y2 + grainOffset);
+      ctx.stroke();
+    }
   }
 }
 
-// Draw rails along a path
+// Draw rails along a path with metallic sheen effect
 function drawRails(
   ctx: CanvasRenderingContext2D,
   centerX: number,
@@ -268,16 +312,14 @@ function drawRails(
 ) {
   const railOffset = 0.06; // Distance from center to each rail
 
+  // Collect rail points for gradient calculations
+  const segments = 20;
+
   // Draw two rails
   for (const offset of [-railOffset, railOffset]) {
-    ctx.strokeStyle = COLORS.track.rail;
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    const railPoints: { x: number; y: number }[] = [];
 
-    ctx.beginPath();
-
-    const segments = 20;
+    // First pass: collect all points
     for (let i = 0; i <= segments; i++) {
       const t = i / segments;
 
@@ -325,18 +367,61 @@ function drawRails(
       // Convert to isometric
       const iso = localToIso(rotated.x, rotated.y);
 
-      if (i === 0) {
-        ctx.moveTo(centerX + iso.dx, centerY + iso.dy + elevOffset);
-      } else {
-        ctx.lineTo(centerX + iso.dx, centerY + iso.dy + elevOffset);
-      }
+      railPoints.push({
+        x: centerX + iso.dx,
+        y: centerY + iso.dy + elevOffset,
+      });
     }
 
+    // Draw shadow underneath rail first
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    railPoints.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y + 2);
+      else ctx.lineTo(p.x, p.y + 2);
+    });
     ctx.stroke();
 
-    // Draw rail highlight
-    ctx.strokeStyle = COLORS.track.railHighlight;
+    // Draw main rail body with metallic gradient
+    // Create a vertical gradient for the "rounded rail" effect
+    const minY = Math.min(...railPoints.map(p => p.y));
+    const maxY = Math.max(...railPoints.map(p => p.y));
+    const railGradient = ctx.createLinearGradient(0, minY - 3, 0, maxY + 3);
+    railGradient.addColorStop(0, '#8B7355');     // Bright top (light hitting)
+    railGradient.addColorStop(0.3, '#6D5843');   // Main body
+    railGradient.addColorStop(0.7, '#5D4037');   // Dark side
+    railGradient.addColorStop(1, '#3E2723');     // Bottom shadow
+
+    ctx.strokeStyle = railGradient;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    railPoints.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.stroke();
+
+    // Draw specular highlight (shiny top edge)
+    ctx.strokeStyle = 'rgba(255, 248, 230, 0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    railPoints.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y - 1);
+      else ctx.lineTo(p.x, p.y - 1);
+    });
+    ctx.stroke();
+
+    // Add subtle inner highlight for depth
+    ctx.strokeStyle = 'rgba(180, 160, 140, 0.3)';
     ctx.lineWidth = 1;
+    ctx.beginPath();
+    railPoints.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
     ctx.stroke();
   }
 }
@@ -422,15 +507,13 @@ export function drawTrack(
   }
 }
 
-// Draw station platform
+// Draw station platform with 3D effect
 function drawStationPlatform(
   ctx: CanvasRenderingContext2D,
   centerX: number,
   centerY: number,
   rotation: Rotation
 ) {
-  ctx.fillStyle = '#8D6E63';
-
   // Platform on one side of the track
   const platformPoints = [
     { x: 0.2, y: 0.1 },
@@ -439,37 +522,91 @@ function drawStationPlatform(
     { x: 0.2, y: 0.9 },
   ];
 
-  ctx.beginPath();
-  platformPoints.forEach((p, i) => {
+  // Get screen coordinates for gradient
+  const isoPoints = platformPoints.map(p => {
     const rotated = rotateLocal(p.x, p.y, rotation);
-    const iso = localToIso(rotated.x, rotated.y);
-    if (i === 0) {
-      ctx.moveTo(centerX + iso.dx, centerY + iso.dy);
-    } else {
-      ctx.lineTo(centerX + iso.dx, centerY + iso.dy);
-    }
+    return localToIso(rotated.x, rotated.y);
+  });
+
+  // Platform shadow
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+  ctx.beginPath();
+  isoPoints.forEach((iso, i) => {
+    if (i === 0) ctx.moveTo(centerX + iso.dx + 2, centerY + iso.dy + 3);
+    else ctx.lineTo(centerX + iso.dx + 2, centerY + iso.dy + 3);
   });
   ctx.closePath();
   ctx.fill();
 
-  // Platform roof
-  ctx.fillStyle = '#D32F2F';
-  const roofY = -8;
+  // Platform base with wood gradient
+  const minX = Math.min(...isoPoints.map(p => p.dx));
+  const maxX = Math.max(...isoPoints.map(p => p.dx));
+  const platformGradient = ctx.createLinearGradient(centerX + minX, 0, centerX + maxX, 0);
+  platformGradient.addColorStop(0, '#A1887F');
+  platformGradient.addColorStop(0.5, '#8D6E63');
+  platformGradient.addColorStop(1, '#6D4C41');
+  ctx.fillStyle = platformGradient;
+
   ctx.beginPath();
-  platformPoints.forEach((p, i) => {
-    const rotated = rotateLocal(p.x, p.y, rotation);
-    const iso = localToIso(rotated.x, rotated.y);
-    if (i === 0) {
-      ctx.moveTo(centerX + iso.dx, centerY + iso.dy + roofY);
-    } else {
-      ctx.lineTo(centerX + iso.dx, centerY + iso.dy + roofY);
-    }
+  isoPoints.forEach((iso, i) => {
+    if (i === 0) ctx.moveTo(centerX + iso.dx, centerY + iso.dy);
+    else ctx.lineTo(centerX + iso.dx, centerY + iso.dy);
   });
   ctx.closePath();
   ctx.fill();
+
+  // Platform edge highlight
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(centerX + isoPoints[0].dx, centerY + isoPoints[0].dy);
+  ctx.lineTo(centerX + isoPoints[1].dx, centerY + isoPoints[1].dy);
+  ctx.stroke();
+
+  // Support pillars
+  const pillarPositions = [0.2, 0.5, 0.8];
+  for (const t of pillarPositions) {
+    const pillarX = 0.3;
+    const pillarY = 0.1 + t * 0.8;
+    const rotated = rotateLocal(pillarX, pillarY, rotation);
+    const iso = localToIso(rotated.x, rotated.y);
+
+    // Pillar with gradient
+    const pillarGradient = ctx.createLinearGradient(
+      centerX + iso.dx - 2, 0, centerX + iso.dx + 2, 0
+    );
+    pillarGradient.addColorStop(0, '#A1887F');
+    pillarGradient.addColorStop(0.5, '#6D4C41');
+    pillarGradient.addColorStop(1, '#4E342E');
+    ctx.fillStyle = pillarGradient;
+    ctx.fillRect(centerX + iso.dx - 1.5, centerY + iso.dy - 8, 3, 8);
+  }
+
+  // Platform roof with gradient
+  const roofY = -10;
+  const roofGradient = ctx.createLinearGradient(0, centerY + roofY - 2, 0, centerY + roofY + 2);
+  roofGradient.addColorStop(0, '#EF5350');
+  roofGradient.addColorStop(1, '#B71C1C');
+  ctx.fillStyle = roofGradient;
+
+  ctx.beginPath();
+  isoPoints.forEach((iso, i) => {
+    if (i === 0) ctx.moveTo(centerX + iso.dx, centerY + iso.dy + roofY);
+    else ctx.lineTo(centerX + iso.dx, centerY + iso.dy + roofY);
+  });
+  ctx.closePath();
+  ctx.fill();
+
+  // Roof highlight
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(centerX + isoPoints[0].dx, centerY + isoPoints[0].dy + roofY);
+  ctx.lineTo(centerX + isoPoints[1].dx, centerY + isoPoints[1].dy + roofY);
+  ctx.stroke();
 }
 
-// Draw signal light
+// Draw signal light with 3D effect
 function drawSignal(
   ctx: CanvasRenderingContext2D,
   centerX: number,
@@ -480,33 +617,75 @@ function drawSignal(
   // Signal post position
   const postPos = rotateLocal(0.8, 0.5, rotation);
   const iso = localToIso(postPos.x, postPos.y);
+  const px = centerX + iso.dx;
+  const py = centerY + iso.dy;
 
-  // Post
-  ctx.fillStyle = '#424242';
-  ctx.fillRect(centerX + iso.dx - 2, centerY + iso.dy - 20, 4, 20);
+  // Post shadow
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+  ctx.fillRect(px, py - 19, 4, 20);
 
-  // Signal light
-  ctx.fillStyle = state === 'green' ? '#4CAF50' : '#F44336';
+  // Post with metallic gradient
+  const postGradient = ctx.createLinearGradient(px - 2, 0, px + 2, 0);
+  postGradient.addColorStop(0, '#616161');
+  postGradient.addColorStop(0.3, '#424242');
+  postGradient.addColorStop(0.7, '#212121');
+  postGradient.addColorStop(1, '#1a1a1a');
+  ctx.fillStyle = postGradient;
+  ctx.fillRect(px - 2, py - 20, 4, 20);
+
+  // Signal housing (black box)
+  const housingGradient = ctx.createLinearGradient(px - 4, 0, px + 4, 0);
+  housingGradient.addColorStop(0, '#424242');
+  housingGradient.addColorStop(0.5, '#212121');
+  housingGradient.addColorStop(1, '#1a1a1a');
+  ctx.fillStyle = housingGradient;
+  ctx.fillRect(px - 4, py - 30, 8, 12);
+
+  // Signal housing highlight
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(px - 4, py - 30, 8, 12);
+
+  // Light glow (outer)
+  const glowColor = state === 'green' ? 'rgba(76, 175, 80, 0.4)' : 'rgba(244, 67, 54, 0.4)';
+  const glowGradient = ctx.createRadialGradient(px, py - 24, 0, px, py - 24, 12);
+  glowGradient.addColorStop(0, glowColor);
+  glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = glowGradient;
   ctx.beginPath();
-  ctx.arc(centerX + iso.dx, centerY + iso.dy - 24, 5, 0, Math.PI * 2);
+  ctx.arc(px, py - 24, 12, 0, Math.PI * 2);
   ctx.fill();
 
-  // Light glow
-  ctx.fillStyle = state === 'green' ? 'rgba(76, 175, 80, 0.3)' : 'rgba(244, 67, 54, 0.3)';
+  // Signal light with gradient for 3D lens effect
+  const lightGradient = ctx.createRadialGradient(px - 1, py - 25, 0, px, py - 24, 5);
+  if (state === 'green') {
+    lightGradient.addColorStop(0, '#A5D6A7');
+    lightGradient.addColorStop(0.4, '#66BB6A');
+    lightGradient.addColorStop(1, '#2E7D32');
+  } else {
+    lightGradient.addColorStop(0, '#EF9A9A');
+    lightGradient.addColorStop(0.4, '#EF5350');
+    lightGradient.addColorStop(1, '#C62828');
+  }
+  ctx.fillStyle = lightGradient;
   ctx.beginPath();
-  ctx.arc(centerX + iso.dx, centerY + iso.dy - 24, 8, 0, Math.PI * 2);
+  ctx.arc(px, py - 24, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Light specular highlight
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.beginPath();
+  ctx.arc(px - 1.5, py - 26, 1.5, 0, Math.PI * 2);
   ctx.fill();
 }
 
-// Draw bridge railings
+// Draw bridge railings with 3D wood effect
 function drawBridgeRailings(
   ctx: CanvasRenderingContext2D,
   centerX: number,
   centerY: number,
   rotation: Rotation
 ) {
-  ctx.strokeStyle = '#8D6E63';
-  ctx.lineWidth = 3;
   ctx.lineCap = 'round';
 
   // Left railing posts
@@ -523,28 +702,77 @@ function drawBridgeRailings(
     { x: 0.7, y: 0.85 },
   ];
 
-  // Draw posts and rails
+  // Draw posts and rails for each side
   for (const posts of [leftPosts, rightPosts]) {
-    // Draw vertical posts
-    for (const post of posts) {
+    // Get iso coordinates
+    const isoPoints = posts.map(post => {
       const rotated = rotateLocal(post.x, post.y, rotation);
-      const iso = localToIso(rotated.x, rotated.y);
+      return localToIso(rotated.x, rotated.y);
+    });
+
+    // Draw vertical posts with gradient
+    for (const iso of isoPoints) {
+      const px = centerX + iso.dx;
+      const py = centerY + iso.dy;
+
+      // Post shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+      ctx.fillRect(px + 1, py - 11, 3, 12);
+
+      // Post with wood gradient
+      const postGradient = ctx.createLinearGradient(px - 2, 0, px + 2, 0);
+      postGradient.addColorStop(0, '#A1887F');
+      postGradient.addColorStop(0.5, '#8D6E63');
+      postGradient.addColorStop(1, '#5D4037');
+      ctx.fillStyle = postGradient;
+      ctx.fillRect(px - 1.5, py - 12, 3, 12);
+
+      // Post cap
+      ctx.fillStyle = '#6D4C41';
       ctx.beginPath();
-      ctx.moveTo(centerX + iso.dx, centerY + iso.dy);
-      ctx.lineTo(centerX + iso.dx, centerY + iso.dy - 12);
-      ctx.stroke();
+      ctx.arc(px, py - 12, 2, 0, Math.PI * 2);
+      ctx.fill();
     }
 
-    // Draw horizontal rail
+    // Draw horizontal rail with gradient
+    const railGradient = ctx.createLinearGradient(
+      centerX + isoPoints[0].dx, centerY + isoPoints[0].dy - 10,
+      centerX + isoPoints[2].dx, centerY + isoPoints[2].dy - 10
+    );
+    railGradient.addColorStop(0, '#A1887F');
+    railGradient.addColorStop(0.5, '#8D6E63');
+    railGradient.addColorStop(1, '#6D4C41');
+
+    // Rail shadow
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.lineWidth = 4;
     ctx.beginPath();
-    for (let i = 0; i < posts.length; i++) {
-      const rotated = rotateLocal(posts[i].x, posts[i].y, rotation);
-      const iso = localToIso(rotated.x, rotated.y);
-      if (i === 0) {
-        ctx.moveTo(centerX + iso.dx, centerY + iso.dy - 10);
-      } else {
-        ctx.lineTo(centerX + iso.dx, centerY + iso.dy - 10);
-      }
+    for (let i = 0; i < isoPoints.length; i++) {
+      const iso = isoPoints[i];
+      if (i === 0) ctx.moveTo(centerX + iso.dx + 1, centerY + iso.dy - 9);
+      else ctx.lineTo(centerX + iso.dx + 1, centerY + iso.dy - 9);
+    }
+    ctx.stroke();
+
+    // Main rail
+    ctx.strokeStyle = railGradient;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let i = 0; i < isoPoints.length; i++) {
+      const iso = isoPoints[i];
+      if (i === 0) ctx.moveTo(centerX + iso.dx, centerY + iso.dy - 10);
+      else ctx.lineTo(centerX + iso.dx, centerY + iso.dy - 10);
+    }
+    ctx.stroke();
+
+    // Rail highlight
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < isoPoints.length; i++) {
+      const iso = isoPoints[i];
+      if (i === 0) ctx.moveTo(centerX + iso.dx, centerY + iso.dy - 11);
+      else ctx.lineTo(centerX + iso.dx, centerY + iso.dy - 11);
     }
     ctx.stroke();
   }
@@ -678,7 +906,7 @@ function drawTunnelPortal(
   drawSinglePortal(ctx, centerX, centerY, rotation, 1.0);   // Exit (S side for rotation 0)
 }
 
-// Draw a single tunnel portal archway
+// Draw a single tunnel portal archway with 3D stone effect
 function drawSinglePortal(
   ctx: CanvasRenderingContext2D,
   centerX: number,
@@ -689,14 +917,9 @@ function drawSinglePortal(
   // Portal position along the track
   const portalY = position;
 
-  // Stone color for the archway
-  const stoneColor = '#6D6552';
-  const stoneDark = '#4A4539';
-  const stoneLight = '#8A8272';
-
   // Archway dimensions
   const archWidth = 0.35;
-  const archHeight = 20;
+  const archHeight = 22;
 
   // Left pillar
   const leftBase = rotateLocal(0.5 - archWidth, portalY, rotation);
@@ -706,71 +929,128 @@ function drawSinglePortal(
   const rightBase = rotateLocal(0.5 + archWidth, portalY, rotation);
   const rightIso = localToIso(rightBase.x, rightBase.y);
 
-  // Draw darkness inside the tunnel (behind the arch)
-  ctx.fillStyle = '#1a1a1a';
+  const lx = centerX + leftIso.dx;
+  const ly = centerY + leftIso.dy;
+  const rx = centerX + rightIso.dx;
+  const ry = centerY + rightIso.dy;
+
+  // Draw darkness inside the tunnel (behind the arch) with gradient
+  const tunnelGradient = ctx.createRadialGradient(
+    (lx + rx) / 2, (ly + ry) / 2 - archHeight / 2, 0,
+    (lx + rx) / 2, (ly + ry) / 2 - archHeight / 2, archHeight
+  );
+  tunnelGradient.addColorStop(0, '#0a0a0a');
+  tunnelGradient.addColorStop(1, '#1a1a1a');
+  ctx.fillStyle = tunnelGradient;
   ctx.beginPath();
-  ctx.moveTo(centerX + leftIso.dx + 3, centerY + leftIso.dy);
-  ctx.lineTo(centerX + rightIso.dx - 3, centerY + rightIso.dy);
-  ctx.lineTo(centerX + rightIso.dx - 3, centerY + rightIso.dy - archHeight + 5);
-  ctx.lineTo(centerX + leftIso.dx + 3, centerY + leftIso.dy - archHeight + 5);
+  ctx.moveTo(lx + 4, ly);
+  ctx.lineTo(rx - 4, ry);
+  ctx.lineTo(rx - 4, ry - archHeight + 6);
+  ctx.lineTo(lx + 4, ly - archHeight + 6);
   ctx.closePath();
   ctx.fill();
 
-  // Draw left pillar
-  ctx.fillStyle = stoneColor;
-  ctx.fillRect(centerX + leftIso.dx - 3, centerY + leftIso.dy - archHeight, 6, archHeight);
+  // Draw left pillar with stone gradient
+  const leftPillarGradient = ctx.createLinearGradient(lx - 4, 0, lx + 4, 0);
+  leftPillarGradient.addColorStop(0, '#8A8272');
+  leftPillarGradient.addColorStop(0.5, '#6D6552');
+  leftPillarGradient.addColorStop(1, '#4A4539');
+  ctx.fillStyle = leftPillarGradient;
+  ctx.fillRect(lx - 4, ly - archHeight, 8, archHeight);
 
-  // Draw right pillar
-  ctx.fillRect(centerX + rightIso.dx - 3, centerY + rightIso.dy - archHeight, 6, archHeight);
+  // Draw right pillar with stone gradient
+  const rightPillarGradient = ctx.createLinearGradient(rx - 4, 0, rx + 4, 0);
+  rightPillarGradient.addColorStop(0, '#8A8272');
+  rightPillarGradient.addColorStop(0.5, '#6D6552');
+  rightPillarGradient.addColorStop(1, '#4A4539');
+  ctx.fillStyle = rightPillarGradient;
+  ctx.fillRect(rx - 4, ry - archHeight, 8, archHeight);
 
   // Draw arch top (semi-circular keystone area)
   const archCenterX = (leftIso.dx + rightIso.dx) / 2;
   const archCenterY = (leftIso.dy + rightIso.dy) / 2 - archHeight;
   const archSpan = Math.abs(rightIso.dx - leftIso.dx) / 2;
+  const acx = centerX + archCenterX;
+  const acy = centerY + archCenterY;
 
-  // Arch stones
-  ctx.fillStyle = stoneDark;
+  // Outer arch stones with gradient
+  const outerArchGradient = ctx.createRadialGradient(acx, acy - 5, 0, acx, acy + 5, archSpan + 5);
+  outerArchGradient.addColorStop(0, '#5A5445');
+  outerArchGradient.addColorStop(1, '#3A3530');
+  ctx.fillStyle = outerArchGradient;
   ctx.beginPath();
-  ctx.arc(centerX + archCenterX, centerY + archCenterY + 5, archSpan + 3, Math.PI, 0, false);
-  ctx.lineTo(centerX + archCenterX + archSpan + 3, centerY + archCenterY + 10);
-  ctx.lineTo(centerX + archCenterX - archSpan - 3, centerY + archCenterY + 10);
+  ctx.arc(acx, acy + 5, archSpan + 4, Math.PI, 0, false);
+  ctx.lineTo(acx + archSpan + 4, acy + 12);
+  ctx.lineTo(acx - archSpan - 4, acy + 12);
   ctx.closePath();
   ctx.fill();
 
-  // Inner arch
-  ctx.fillStyle = stoneLight;
+  // Inner arch with gradient
+  const innerArchGradient = ctx.createLinearGradient(acx - archSpan, acy, acx + archSpan, acy);
+  innerArchGradient.addColorStop(0, '#9A9282');
+  innerArchGradient.addColorStop(0.5, '#7A7262');
+  innerArchGradient.addColorStop(1, '#6A6252');
+  ctx.fillStyle = innerArchGradient;
   ctx.beginPath();
-  ctx.arc(centerX + archCenterX, centerY + archCenterY + 5, archSpan, Math.PI, 0, false);
-  ctx.lineTo(centerX + archCenterX + archSpan, centerY + archCenterY + 8);
-  ctx.lineTo(centerX + archCenterX - archSpan, centerY + archCenterY + 8);
+  ctx.arc(acx, acy + 5, archSpan, Math.PI, 0, false);
+  ctx.lineTo(acx + archSpan, acy + 9);
+  ctx.lineTo(acx - archSpan, acy + 9);
   ctx.closePath();
   ctx.fill();
 
-  // Keystone at top of arch
-  ctx.fillStyle = stoneDark;
+  // Keystone at top of arch with 3D effect
+  const keystoneGradient = ctx.createLinearGradient(acx - 5, acy - archSpan, acx + 5, acy - archSpan);
+  keystoneGradient.addColorStop(0, '#7A7262');
+  keystoneGradient.addColorStop(0.5, '#5A5445');
+  keystoneGradient.addColorStop(1, '#4A4539');
+  ctx.fillStyle = keystoneGradient;
   ctx.beginPath();
-  ctx.moveTo(centerX + archCenterX - 4, centerY + archCenterY - archSpan + 2);
-  ctx.lineTo(centerX + archCenterX + 4, centerY + archCenterY - archSpan + 2);
-  ctx.lineTo(centerX + archCenterX + 3, centerY + archCenterY - archSpan + 10);
-  ctx.lineTo(centerX + archCenterX - 3, centerY + archCenterY - archSpan + 10);
+  ctx.moveTo(acx - 5, acy - archSpan + 1);
+  ctx.lineTo(acx + 5, acy - archSpan + 1);
+  ctx.lineTo(acx + 4, acy - archSpan + 12);
+  ctx.lineTo(acx - 4, acy - archSpan + 12);
   ctx.closePath();
   ctx.fill();
 
-  // Add some stone texture lines on pillars
-  ctx.strokeStyle = stoneDark;
+  // Keystone highlight
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.beginPath();
+  ctx.moveTo(acx - 4, acy - archSpan + 2);
+  ctx.lineTo(acx, acy - archSpan + 1);
+  ctx.lineTo(acx, acy - archSpan + 10);
+  ctx.lineTo(acx - 3, acy - archSpan + 11);
+  ctx.closePath();
+  ctx.fill();
+
+  // Add stone block lines on pillars
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
   ctx.lineWidth = 1;
-  for (let i = 1; i < 4; i++) {
-    const y = centerY + leftIso.dy - (archHeight * i / 4);
+  for (let i = 1; i < 5; i++) {
+    const yOffset = archHeight * i / 5;
+
+    // Left pillar blocks
     ctx.beginPath();
-    ctx.moveTo(centerX + leftIso.dx - 3, y);
-    ctx.lineTo(centerX + leftIso.dx + 3, y);
+    ctx.moveTo(lx - 4, ly - yOffset);
+    ctx.lineTo(lx + 4, ly - yOffset);
     ctx.stroke();
 
+    // Right pillar blocks
     ctx.beginPath();
-    ctx.moveTo(centerX + rightIso.dx - 3, y);
-    ctx.lineTo(centerX + rightIso.dx + 3, y);
+    ctx.moveTo(rx - 4, ry - yOffset);
+    ctx.lineTo(rx + 4, ry - yOffset);
     ctx.stroke();
   }
+
+  // Pillar edge highlights
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.beginPath();
+  ctx.moveTo(lx - 4, ly);
+  ctx.lineTo(lx - 4, ly - archHeight);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(rx - 4, ry);
+  ctx.lineTo(rx - 4, ry - archHeight);
+  ctx.stroke();
 }
 
 /**
