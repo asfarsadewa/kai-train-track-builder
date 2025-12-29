@@ -239,7 +239,7 @@ export function calculateTrainPosition(
   const isoTangentY = (tangent.x + tangent.y) * 0.5;
 
   // Calculate base rotation from tangent direction
-  let rotation = Math.atan2(isoTangentY, isoTangentX);
+  const rotation = Math.atan2(isoTangentY, isoTangentX);
 
   // When going backward, the tangent already points in the reverse direction
   // due to the swapped bezier path, so rotation is correct

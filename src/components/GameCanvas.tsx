@@ -98,6 +98,7 @@ export function GameCanvas() {
 
   // Keep state ref updated for render loop to access
   const stateRef = useRef(state);
+  // eslint-disable-next-line react-hooks/refs
   stateRef.current = state;
 
   // Train movement state (stored in refs for animation loop access)
@@ -828,7 +829,7 @@ export function GameCanvas() {
 
   // Handle click
   const handleClick = useCallback(
-    (_e: React.MouseEvent<HTMLCanvasElement>) => {
+    () => {
       if (!state.hoveredCell) return;
 
       const { x, y } = state.hoveredCell;
@@ -901,6 +902,7 @@ export function GameCanvas() {
           display: 'block',
           maxWidth: '100%',
           height: 'auto',
+          // eslint-disable-next-line react-hooks/refs
           cursor: isDraggingRef.current ? 'grabbing' : state.hoveredCell ? 'pointer' : 'default',
         }}
       />
