@@ -21,6 +21,7 @@ import type {
   GridPosition,
   CarriageConfig,
   CarriageType,
+  CollisionState,
 } from '../types';
 import { createDefaultGrid, createDefaultCamera, MAX_CARRIAGES } from '../types';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '../constants';
@@ -46,7 +47,9 @@ export type GameAction =
   | { type: 'RESTORE_SNAPSHOT'; snapshot: HistorySnapshot }
   | { type: 'ADD_CARRIAGE'; carriageType: Exclude<CarriageType, 'engine'> }
   | { type: 'REMOVE_CARRIAGE'; index: number }
-  | { type: 'CLEAR_CARRIAGES' };
+  | { type: 'CLEAR_CARRIAGES' }
+  | { type: 'SET_DANGER_MODE'; enabled: boolean }
+  | { type: 'SET_COLLISION'; collision: CollisionState | null };
 
 // Snapshot of undoable state (only tracks and terrain)
 interface HistorySnapshot {
@@ -70,6 +73,8 @@ function createInitialState(): GameState {
     camera: createDefaultCamera(),
     hoveredCell: null,
     carriageConfig: [], // Engine only by default
+    isDangerMode: false,
+    collisionState: null,
   };
 }
 
@@ -244,6 +249,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'CLEAR_CARRIAGES':
       return { ...state, carriageConfig: [] };
+
+    case 'SET_DANGER_MODE':
+      return { ...state, isDangerMode: action.enabled };
+
+    case 'SET_COLLISION':
+      return { ...state, collisionState: action.collision };
 
     default:
       return state;

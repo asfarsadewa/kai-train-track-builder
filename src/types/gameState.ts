@@ -3,6 +3,7 @@
 import type { GameGrid, GridPosition, TerrainType } from './grid';
 import type { TrackPiece, TrackType } from './tracks';
 import type { TrainState, CarriageConfig } from './train';
+import type { CollisionState } from './dangerMode';
 
 export type ToolType =
   | 'select'
@@ -30,6 +31,8 @@ export interface GameState {
   camera: CameraState;
   hoveredCell: GridPosition | null;
   carriageConfig: CarriageConfig[]; // User's configured train composition
+  isDangerMode: boolean; // Two trains, one collision!
+  collisionState: CollisionState | null; // Active collision animation
 }
 
 // For save/load persistence

@@ -1,6 +1,6 @@
 // Sound manager for game audio effects
 
-type SoundType = 'click' | 'place' | 'remove' | 'chug' | 'whistle';
+type SoundType = 'click' | 'place' | 'remove' | 'chug' | 'whistle' | 'explosion';
 
 class SoundManagerClass {
   private audioContext: AudioContext | null = null;
@@ -201,6 +201,82 @@ class SoundManagerClass {
     osc2.stop(now + 0.5);
   }
 
+  // Play explosion sound (train collision)
+  playExplosion() {
+    if (!this.enabled || !this.audioContext) return;
+
+    const now = this.audioContext.currentTime;
+    const vol = this.volume * 0.8;
+
+    // Low boom (main impact)
+    const boom = this.audioContext.createOscillator();
+    const boomGain = this.audioContext.createGain();
+    boom.connect(boomGain);
+    boomGain.connect(this.audioContext.destination);
+    boom.type = 'sine';
+    boom.frequency.setValueAtTime(80, now);
+    boom.frequency.exponentialRampToValueAtTime(30, now + 0.5);
+    boomGain.gain.setValueAtTime(vol, now);
+    boomGain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+    boom.start(now);
+    boom.stop(now + 0.5);
+
+    // Noise burst (explosion texture)
+    const noiseBuffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.3, this.audioContext.sampleRate);
+    const noiseData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < noiseBuffer.length; i++) {
+      noiseData[i] = (Math.random() * 2 - 1);
+    }
+    const noise = this.audioContext.createBufferSource();
+    noise.buffer = noiseBuffer;
+    const noiseGain = this.audioContext.createGain();
+    const noiseFilter = this.audioContext.createBiquadFilter();
+    noiseFilter.type = 'lowpass';
+    noiseFilter.frequency.setValueAtTime(2000, now);
+    noiseFilter.frequency.exponentialRampToValueAtTime(200, now + 0.3);
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(this.audioContext.destination);
+    noiseGain.gain.setValueAtTime(vol * 0.6, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+    noise.start(now);
+
+    // High impact crack
+    const crack = this.audioContext.createOscillator();
+    const crackGain = this.audioContext.createGain();
+    crack.connect(crackGain);
+    crackGain.connect(this.audioContext.destination);
+    crack.type = 'sawtooth';
+    crack.frequency.setValueAtTime(400, now);
+    crack.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+    crackGain.gain.setValueAtTime(vol * 0.5, now);
+    crackGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+    crack.start(now);
+    crack.stop(now + 0.15);
+
+    // Metal crash (delayed slightly)
+    setTimeout(() => {
+      if (!this.audioContext) return;
+      const metalNow = this.audioContext.currentTime;
+      const metal1 = this.audioContext.createOscillator();
+      const metal2 = this.audioContext.createOscillator();
+      const metalGain = this.audioContext.createGain();
+      metal1.connect(metalGain);
+      metal2.connect(metalGain);
+      metalGain.connect(this.audioContext.destination);
+      metal1.type = 'square';
+      metal2.type = 'square';
+      metal1.frequency.value = 440;
+      metal2.frequency.value = 587;
+      metalGain.gain.setValueAtTime(vol * 0.3, metalNow);
+      metalGain.gain.exponentialRampToValueAtTime(0.01, metalNow + 0.2);
+      metal1.start(metalNow);
+      metal2.start(metalNow);
+      metal1.stop(metalNow + 0.2);
+      metal2.stop(metalNow + 0.2);
+    }, 50);
+  }
+
   // Play sound by type
   play(sound: SoundType) {
     this.init();
@@ -219,6 +295,9 @@ class SoundManagerClass {
         break;
       case 'chug':
         this.playChugOnce();
+        break;
+      case 'explosion':
+        this.playExplosion();
         break;
     }
   }

@@ -99,3 +99,90 @@ export const COLORS = {
   // Background
   background: '#E8F5E9', // Light green tint
 };
+
+// Dark colors for Danger Mode
+export const DARK_COLORS = {
+  // Terrain colors (darker, more ominous)
+  terrain: {
+    grass: {
+      top: '#2d4a3e',
+      left: '#1e3328',
+      right: '#243d32',
+    },
+    water: {
+      top: '#1a3a4a',
+      left: '#0d2535',
+      right: '#132d3f',
+    },
+    sand: {
+      top: '#8B7355',
+      left: '#5D4E37',
+      right: '#6B5B45',
+    },
+    rock: {
+      top: '#4a4a4a',
+      left: '#2a2a2a',
+      right: '#3a3a3a',
+    },
+    forest: {
+      top: '#1a2f1a',
+      left: '#0d1a0d',
+      right: '#152515',
+    },
+    farm: {
+      top: '#4a4a2a',
+      left: '#3a3a1a',
+      right: '#424222',
+    },
+    village: {
+      top: '#3d3028',
+      left: '#2a201a',
+      right: '#352820',
+    },
+    flowers: {
+      top: '#2a4a2a',
+      left: '#1a3a1a',
+      right: '#224022',
+    },
+    cliff: {
+      light: '#3d2e28',
+      dark: '#251a15',
+    },
+  },
+
+  // Track colors (darker wood)
+  track: {
+    rail: '#2a1a15',
+    railHighlight: '#3d2820',
+    sleeper: '#3d2e28',
+    sleeperShadow: '#1a0f0a',
+  },
+
+  // Evil train colors
+  evilTrain: {
+    engine: '#1a1a1a',
+    engineHighlight: '#333333',
+    engineShadow: '#0a0a0a',
+    wheel: '#1a1a1a',
+    wheelCenter: '#660000',
+    chimney: '#0a0a0a',
+    window: '#aa0000', // Sinister red glow
+    accent: '#4a0066', // Dark purple
+  },
+
+  // UI colors (slightly darker)
+  ui: {
+    hover: 'rgba(255, 100, 100, 0.3)',
+    selected: 'rgba(200, 50, 50, 0.4)',
+    invalid: 'rgba(244, 67, 54, 0.4)',
+    grid: 'rgba(0, 0, 0, 0.2)',
+  },
+
+  // Background
+  background: '#1a1a2e', // Dark blue-black
+};
+
+// Helper to get colors based on danger mode
+export function getColors(isDangerMode: boolean) {
+  return isDangerMode ? DARK_COLORS : COLORS;
+}

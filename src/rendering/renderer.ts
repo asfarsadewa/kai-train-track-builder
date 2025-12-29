@@ -1,7 +1,7 @@
 // Main game renderer
 
 import type { GameState } from '../types';
-import { calculateCanvasSize, calculateGridOrigin, COLORS } from '../constants';
+import { calculateCanvasSize, calculateGridOrigin, COLORS, DARK_COLORS } from '../constants';
 import { renderTerrain, renderHoverHighlight } from './terrainRenderer';
 import { renderTracks } from './trackRenderer';
 
@@ -37,8 +37,8 @@ export function setupCanvas(
 /**
  * Clear the canvas with background color
  */
-export function clearCanvas(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
-  ctx.fillStyle = COLORS.background;
+export function clearCanvas(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, isDangerMode: boolean = false) {
+  ctx.fillStyle = isDangerMode ? DARK_COLORS.background : COLORS.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
@@ -57,11 +57,17 @@ export function render(
   ctx.translate(state.camera.offsetX, state.camera.offsetY);
   ctx.scale(state.camera.zoom, state.camera.zoom);
 
-  // Clear canvas
-  clearCanvas(ctx, canvas);
+  // Clear canvas (dark background in danger mode)
+  clearCanvas(ctx, canvas, state.isDangerMode);
 
   // Render terrain grid
   renderTerrain(ctx, state.grid, originX, originY);
+
+  // Apply dark overlay in danger mode to darken terrain
+  if (state.isDangerMode) {
+    ctx.fillStyle = 'rgba(0, 0, 30, 0.4)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
   // Render tracks (pass grid for elevation-aware slope rendering)
   renderTracks(ctx, state.tracks, originX, originY, state.grid);

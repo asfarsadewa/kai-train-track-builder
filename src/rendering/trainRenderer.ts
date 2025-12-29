@@ -1,6 +1,6 @@
 // Train rendering - cute wooden toy train aesthetic for isometric view
 
-import { COLORS } from '../constants';
+import { COLORS, DARK_COLORS } from '../constants';
 import type { TrainPosition } from '../logic/trainMovement';
 import type { CarriageType } from '../types';
 
@@ -420,4 +420,235 @@ export function drawSmoke(
     ctx.arc(puffX, puffY, puffSize, 0, Math.PI * 2);
     ctx.fill();
   }
+}
+
+/**
+ * Draw the evil train engine (dark variant for danger mode)
+ * Black body with red glowing windows and sinister appearance
+ */
+export function drawEvilTrain(
+  ctx: CanvasRenderingContext2D,
+  position: TrainPosition
+) {
+  const { worldX, worldY, rotation } = position;
+
+  ctx.save();
+  ctx.translate(worldX, worldY);
+
+  // Train dimensions (same as normal train)
+  const trainLength = 28;
+  const bodyHeight = 10;
+  const baseOffset = 4;
+
+  // Calculate direction vector from rotation
+  const dirX = Math.cos(rotation);
+  const dirY = Math.sin(rotation);
+
+  // Perpendicular vector (for width)
+  const perpX = -dirY;
+  const perpY = dirX;
+
+  // Draw darker shadow
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+  ctx.beginPath();
+  ctx.ellipse(0, baseOffset + 2, trainLength / 2, 4, rotation, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw wheels - black with red centers
+  const wheelRadius = 4;
+  const wheelSpacingLength = trainLength / 2 - 8;
+  const wheelSpacingWidth = 5;
+
+  for (const lengthMult of [-1, 1]) {
+    for (const widthMult of [-1, 1]) {
+      const wx = lengthMult * wheelSpacingLength * dirX + widthMult * wheelSpacingWidth * perpX;
+      const wy = lengthMult * wheelSpacingLength * dirY + widthMult * wheelSpacingWidth * perpY + baseOffset;
+
+      // Black outer wheel
+      ctx.fillStyle = DARK_COLORS.evilTrain.wheel;
+      ctx.beginPath();
+      ctx.arc(wx, wy, wheelRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Evil red center
+      ctx.fillStyle = DARK_COLORS.evilTrain.wheelCenter;
+      ctx.beginPath();
+      ctx.arc(wx, wy, wheelRadius - 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Draw train body - black
+  ctx.fillStyle = DARK_COLORS.evilTrain.engine;
+  drawRotatedRect(ctx, 0, -bodyHeight / 2, trainLength, bodyHeight + 2, rotation);
+
+  // Dark purple highlight (top edge)
+  ctx.fillStyle = '#2a0a3a';
+  drawRotatedRect(ctx, 0, -bodyHeight / 2 - 1, trainLength - 4, 4, rotation);
+
+  // Cabin (back of train)
+  const cabinOffsetX = (trainLength / 2 - 5) * dirX;
+  const cabinOffsetY = (trainLength / 2 - 5) * dirY;
+  ctx.fillStyle = DARK_COLORS.evilTrain.engineShadow;
+  drawRotatedRect(ctx, cabinOffsetX, cabinOffsetY - bodyHeight / 2 - 3, 10, bodyHeight + 4, rotation);
+
+  // Evil red glowing window
+  ctx.fillStyle = DARK_COLORS.evilTrain.window;
+  drawRotatedRect(ctx, cabinOffsetX, cabinOffsetY - bodyHeight / 2 - 1, 6, bodyHeight - 2, rotation);
+
+  // Window glow effect
+  ctx.fillStyle = 'rgba(170, 0, 0, 0.3)';
+  ctx.beginPath();
+  ctx.arc(
+    cabinOffsetX,
+    cabinOffsetY - bodyHeight / 2 - 1,
+    8,
+    0,
+    Math.PI * 2
+  );
+  ctx.fill();
+
+  // Chimney (front of train)
+  const chimneyOffsetX = (-trainLength / 2 + 8) * dirX;
+  const chimneyOffsetY = (-trainLength / 2 + 8) * dirY;
+  ctx.fillStyle = DARK_COLORS.evilTrain.chimney;
+  ctx.beginPath();
+  ctx.arc(chimneyOffsetX, chimneyOffsetY - bodyHeight - 4, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Chimney top with subtle red glow
+  ctx.fillStyle = '#1a0a0a';
+  ctx.beginPath();
+  ctx.arc(chimneyOffsetX, chimneyOffsetY - bodyHeight - 6, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Front bumper (menacing)
+  const bumperOffsetX = (-trainLength / 2 - 2) * dirX;
+  const bumperOffsetY = (-trainLength / 2 - 2) * dirY;
+  ctx.fillStyle = '#1a0a0a';
+  drawRotatedRect(ctx, bumperOffsetX, bumperOffsetY, 4, 8, rotation);
+
+  // Add spiky detail on bumper for menacing look
+  ctx.fillStyle = '#330000';
+  const spikeX = (-trainLength / 2 - 4) * dirX;
+  const spikeY = (-trainLength / 2 - 4) * dirY;
+  ctx.beginPath();
+  ctx.moveTo(spikeX - 3 * perpX, spikeY - 3 * perpY);
+  ctx.lineTo(spikeX - 6 * dirX, spikeY - 6 * dirY);
+  ctx.lineTo(spikeX + 3 * perpX, spikeY + 3 * perpY);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+/**
+ * Draw evil smoke (dark with red tint)
+ */
+export function drawEvilSmoke(
+  ctx: CanvasRenderingContext2D,
+  position: TrainPosition,
+  time: number
+) {
+  const { worldX, worldY, rotation } = position;
+
+  const trainLength = 28;
+  const bodyHeight = 10;
+
+  const dirX = Math.cos(rotation);
+  const dirY = Math.sin(rotation);
+  const chimneyOffsetX = (-trainLength / 2 + 8) * dirX;
+  const chimneyOffsetY = (-trainLength / 2 + 8) * dirY;
+
+  const chimneyX = worldX + chimneyOffsetX;
+  const chimneyY = worldY + chimneyOffsetY - bodyHeight - 6;
+
+  // Draw dark smoke puffs with red tint
+  for (let i = 0; i < 3; i++) {
+    const puffAge = (time * 2 + i * 0.5) % 1.5;
+    const puffSize = 3 + puffAge * 8;
+    const puffY = chimneyY - puffAge * 20;
+    const puffX = chimneyX + Math.sin(puffAge * 4) * 3;
+    const alpha = Math.max(0, 0.6 - puffAge * 0.4);
+
+    // Dark smoke with red tint
+    ctx.fillStyle = `rgba(50, 20, 20, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(puffX, puffY, puffSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Add ember particles
+    if (puffAge < 0.5) {
+      ctx.fillStyle = `rgba(255, 100, 0, ${alpha * 0.5})`;
+      ctx.beginPath();
+      ctx.arc(puffX + Math.random() * 4 - 2, puffY + Math.random() * 4, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+/**
+ * Draw evil carriage (dark variant)
+ */
+export function drawEvilCarriage(
+  ctx: CanvasRenderingContext2D,
+  position: TrainPosition,
+  type: Exclude<CarriageType, 'engine'> = 'passenger'
+) {
+  const { worldX, worldY, rotation } = position;
+
+  ctx.save();
+  ctx.translate(worldX, worldY);
+
+  const carriageLength = 24;
+  const bodyHeight = 8;
+  const baseOffset = 4;
+
+  const dirX = Math.cos(rotation);
+  const dirY = Math.sin(rotation);
+  const perpX = -dirY;
+  const perpY = dirX;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.beginPath();
+  ctx.ellipse(0, baseOffset + 2, carriageLength / 2, 4, rotation, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Black wheels with red centers
+  const wheelRadius = 3;
+  const wheelSpacingLength = carriageLength / 2 - 6;
+  const wheelSpacingWidth = 4;
+
+  for (const lengthMult of [-1, 1]) {
+    for (const widthMult of [-1, 1]) {
+      const wx = lengthMult * wheelSpacingLength * dirX + widthMult * wheelSpacingWidth * perpX;
+      const wy = lengthMult * wheelSpacingLength * dirY + widthMult * wheelSpacingWidth * perpY + baseOffset;
+
+      ctx.fillStyle = DARK_COLORS.evilTrain.wheel;
+      ctx.beginPath();
+      ctx.arc(wx, wy, wheelRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Dark carriage body
+  ctx.fillStyle = '#1a1a1a';
+  drawRotatedRect(ctx, 0, -bodyHeight / 2, carriageLength, bodyHeight + 2, rotation);
+
+  // Dark purple highlight
+  ctx.fillStyle = '#2a0a3a';
+  drawRotatedRect(ctx, 0, -bodyHeight / 2 - 1, carriageLength - 4, 3, rotation);
+
+  // Red glowing windows based on carriage type
+  if (type === 'passenger' || type === 'caboose') {
+    ctx.fillStyle = 'rgba(170, 0, 0, 0.8)';
+    for (let i = -1; i <= 1; i++) {
+      const windowOffsetX = i * 6 * dirX;
+      const windowOffsetY = i * 6 * dirY;
+      drawRotatedRect(ctx, windowOffsetX, windowOffsetY - bodyHeight / 2, 4, 4, rotation);
+    }
+  }
+
+  ctx.restore();
 }

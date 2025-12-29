@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
+import { CollapsibleSection } from './CollapsibleSection';
 import { TrackPalette } from './TrackPalette';
 import { TerrainPalette } from './TerrainPalette';
 import { TrainPalette } from './TrainPalette';
@@ -74,57 +75,70 @@ export function Toolbar() {
         </button>
       </div>
 
-      <div style={styles.divider} />
-
-      <h3 style={styles.title}>Tools</h3>
-
-      <div style={styles.toolRow}>
-        {TOOLS.map((tool) => (
-          <button
-            key={tool.id}
-            onClick={() => dispatch({ type: 'SET_TOOL', tool: tool.id })}
+      {/* Danger Mode Toggle */}
+      <label
+        style={{
+          ...styles.dangerToggle,
+          ...(state.isPlaying ? styles.dangerToggleDisabled : {}),
+        }}
+        title="Two trains, one collision!"
+      >
+        <input
+          type="checkbox"
+          checked={state.isDangerMode}
+          onChange={(e) => dispatch({ type: 'SET_DANGER_MODE', enabled: e.target.checked })}
+          disabled={state.isPlaying}
+          style={styles.hiddenCheckbox}
+        />
+        <span
+          style={{
+            ...styles.toggleTrack,
+            ...(state.isDangerMode ? styles.toggleTrackActive : {}),
+          }}
+        >
+          <span
             style={{
-              ...styles.iconButton,
-              ...(state.selectedTool === tool.id ? styles.iconButtonActive : {}),
+              ...styles.toggleThumb,
+              ...(state.isDangerMode ? styles.toggleThumbActive : {}),
             }}
-            title={tool.label}
-          >
-            {tool.icon}
-          </button>
-        ))}
-      </div>
+          />
+        </span>
+        <span style={styles.dangerLabel}>
+          ☠️ Danger Mode
+        </span>
+      </label>
 
-      <div style={styles.divider} />
+      <CollapsibleSection title="Tools" defaultExpanded>
+        <div style={styles.toolRow}>
+          {TOOLS.map((tool) => (
+            <button
+              key={tool.id}
+              onClick={() => dispatch({ type: 'SET_TOOL', tool: tool.id })}
+              style={{
+                ...styles.iconButton,
+                ...(state.selectedTool === tool.id ? styles.iconButtonActive : {}),
+              }}
+              title={tool.label}
+            >
+              {tool.icon}
+            </button>
+          ))}
+        </div>
+      </CollapsibleSection>
 
-      <TrackPalette />
+      <CollapsibleSection title="Track Pieces" defaultExpanded>
+        <TrackPalette />
+      </CollapsibleSection>
 
-      <div style={styles.divider} />
+      <CollapsibleSection title="Terrain">
+        <TerrainPalette />
+      </CollapsibleSection>
 
-      <TerrainPalette />
+      <CollapsibleSection title="Train Composition">
+        <TrainPalette />
+      </CollapsibleSection>
 
-      <div style={styles.divider} />
-
-      <TrainPalette />
-
-      <div style={styles.divider} />
-
-      <h3 style={styles.title}>Info</h3>
-      <div style={styles.info}>
-        {state.hoveredCell ? (
-          <p>
-            Cell: ({state.hoveredCell.x}, {state.hoveredCell.y})
-            <br />
-            Elevation:{' '}
-            {state.grid.cells[state.hoveredCell.y][state.hoveredCell.x].elevation}
-          </p>
-        ) : (
-          <p>Hover over a tile</p>
-        )}
-      </div>
-
-      <div style={styles.divider} />
-
-      <h3 style={styles.title}>Train</h3>
+      <CollapsibleSection title="Train Controls" defaultExpanded>
       <div style={styles.trainControls}>
         <button
           onClick={() => dispatch({ type: 'TOGGLE_PLAY' })}
@@ -152,72 +166,82 @@ export function Toolbar() {
             : 'Place a station for the train to spawn!'}
         </p>
       )}
+      </CollapsibleSection>
 
-      <div style={styles.divider} />
+      <CollapsibleSection title="Save / Load">
+        <div style={styles.saveLoadButtons}>
+          <button
+            onClick={() => setModalMode('save')}
+            style={styles.saveButton}
+            disabled={state.tracks.size === 0}
+          >
+            💾 Save
+          </button>
+          <button
+            onClick={() => setModalMode('load')}
+            style={styles.loadButtonSmall}
+          >
+            📂 Load
+          </button>
+        </div>
+      </CollapsibleSection>
 
-      <h3 style={styles.title}>Save / Load</h3>
-      <div style={styles.saveLoadButtons}>
+      <CollapsibleSection title="Sound">
         <button
-          onClick={() => setModalMode('save')}
-          style={styles.saveButton}
-          disabled={state.tracks.size === 0}
-        >
-          💾 Save
-        </button>
-        <button
-          onClick={() => setModalMode('load')}
-          style={styles.loadButtonSmall}
-        >
-          📂 Load
-        </button>
-      </div>
-
-      <div style={styles.divider} />
-
-      <h3 style={styles.title}>Sound</h3>
-      <button
-        onClick={() => setSoundEnabled(!soundEnabled)}
-        style={{
-          ...styles.soundButton,
-          ...(soundEnabled ? {} : styles.soundButtonMuted),
-        }}
-      >
-        {soundEnabled ? '🔊 Sound On' : '🔇 Sound Off'}
-      </button>
-
-      <div style={styles.divider} />
-
-      <h3 style={styles.title}>Edit</h3>
-      <div style={styles.undoRedoButtons}>
-        <button
-          onClick={undo}
+          onClick={() => setSoundEnabled(!soundEnabled)}
           style={{
-            ...styles.undoButton,
-            ...(canUndo ? {} : styles.buttonDisabled),
+            ...styles.soundButton,
+            ...(soundEnabled ? {} : styles.soundButtonMuted),
           }}
-          disabled={!canUndo}
-          title="Undo (Ctrl+Z)"
         >
-          ↩️ Undo
+          {soundEnabled ? '🔊 Sound On' : '🔇 Sound Off'}
         </button>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Edit">
+        <div style={styles.undoRedoButtons}>
+          <button
+            onClick={undo}
+            style={{
+              ...styles.undoButton,
+              ...(canUndo ? {} : styles.buttonDisabled),
+            }}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+          >
+            ↩️ Undo
+          </button>
+          <button
+            onClick={redo}
+            style={{
+              ...styles.redoButton,
+              ...(canRedo ? {} : styles.buttonDisabled),
+            }}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Y)"
+          >
+            ↪️ Redo
+          </button>
+        </div>
         <button
-          onClick={redo}
-          style={{
-            ...styles.redoButton,
-            ...(canRedo ? {} : styles.buttonDisabled),
-          }}
-          disabled={!canRedo}
-          title="Redo (Ctrl+Y)"
+          onClick={() => dispatch({ type: 'CLEAR_LAYOUT' })}
+          style={styles.clearButton}
         >
-          ↪️ Redo
+          🗑️ Clear All
         </button>
+      </CollapsibleSection>
+
+      {/* Footer */}
+      <div style={styles.footer}>
+        <a
+          href="https://x.com/ashthepeasant"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={styles.footerLink}
+        >
+          © ashthepeasant
+        </a>
       </div>
-      <button
-        onClick={() => dispatch({ type: 'CLEAR_LAYOUT' })}
-        style={styles.clearButton}
-      >
-        🗑️ Clear All
-      </button>
     </div>
   );
 }
@@ -258,12 +282,6 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    margin: '0 0 8px 0',
-    fontSize: '14px',
-    fontWeight: 600,
-    color: '#333',
-  },
   toolRow: {
     display: 'flex',
     gap: '4px',
@@ -285,25 +303,6 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#4CAF50',
     borderColor: '#4CAF50',
     boxShadow: '0 0 0 2px rgba(76, 175, 80, 0.3)',
-  },
-  divider: {
-    height: '1px',
-    backgroundColor: '#ddd',
-    margin: '8px 0',
-  },
-  info: {
-    fontSize: '12px',
-    color: '#666',
-  },
-  actionButton: {
-    padding: '8px 12px',
-    border: '1px solid #f44336',
-    borderRadius: '4px',
-    backgroundColor: 'white',
-    color: '#f44336',
-    cursor: 'pointer',
-    fontSize: '13px',
-    transition: 'all 0.15s ease',
   },
   trainControls: {
     display: 'flex',
@@ -422,5 +421,67 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     fontSize: '12px',
     transition: 'all 0.15s ease',
+  },
+  footer: {
+    marginTop: 'auto',
+    paddingTop: '16px',
+    textAlign: 'center',
+  },
+  footerLink: {
+    fontSize: '11px',
+    color: '#999',
+    textDecoration: 'none',
+  },
+  dangerToggle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '10px 12px',
+    backgroundColor: '#fff',
+    border: '1px solid #ddd',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  dangerToggleDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+  },
+  hiddenCheckbox: {
+    position: 'absolute' as const,
+    opacity: 0,
+    width: 0,
+    height: 0,
+  },
+  toggleTrack: {
+    position: 'relative' as const,
+    width: '40px',
+    height: '22px',
+    backgroundColor: '#ccc',
+    borderRadius: '11px',
+    transition: 'background-color 0.2s ease',
+    flexShrink: 0,
+  },
+  toggleTrackActive: {
+    backgroundColor: '#FF5722',
+  },
+  toggleThumb: {
+    position: 'absolute' as const,
+    top: '2px',
+    left: '2px',
+    width: '18px',
+    height: '18px',
+    backgroundColor: 'white',
+    borderRadius: '50%',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+    transition: 'transform 0.2s ease',
+  },
+  toggleThumbActive: {
+    transform: 'translateX(18px)',
+  },
+  dangerLabel: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#333',
   },
 };

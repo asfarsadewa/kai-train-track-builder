@@ -5,3 +5,4 @@ export * from './terrainRenderer';
 export * from './trackRenderer';
 export * from './trainRenderer';
 export * from './renderer';
+export * from './collisionRenderer';
