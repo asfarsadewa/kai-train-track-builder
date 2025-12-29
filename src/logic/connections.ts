@@ -22,6 +22,7 @@ import { TRACK_DEFINITIONS } from '../constants';
  */
 export function getElevationAtConnection(
   track: TrackPiece,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _direction: CardinalDirection
 ): number {
   // All connection points are at the track's base elevation (= terrain elevation)

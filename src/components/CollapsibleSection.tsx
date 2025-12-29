@@ -23,6 +23,7 @@ export function CollapsibleSection({
   useEffect(() => {
     if (contentRef.current) {
       const height = contentRef.current.scrollHeight;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setContentHeight(isExpanded ? height : 0);
     }
   }, [isExpanded, children]);

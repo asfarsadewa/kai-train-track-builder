@@ -325,14 +325,19 @@ export function GameProvider({ children }: GameProviderProps) {
     baseDispatch({ type: 'RESTORE_SNAPSHOT', snapshot });
   }, [state]);
 
+  // eslint-disable-next-line react-hooks/refs
+  const canUndo = undoStackRef.current.length > 0;
+  // eslint-disable-next-line react-hooks/refs
+  const canRedo = redoStackRef.current.length > 0;
+
   return (
     <GameContext.Provider value={{
       state,
       dispatch,
       undo,
       redo,
-      canUndo: undoStackRef.current.length > 0,
-      canRedo: redoStackRef.current.length > 0,
+      canUndo,
+      canRedo,
     }}>
       {children}
     </GameContext.Provider>
@@ -340,6 +345,7 @@ export function GameProvider({ children }: GameProviderProps) {
 }
 
 // Hook to use game context
+// eslint-disable-next-line react-refresh/only-export-components
 export function useGame() {
   const context = useContext(GameContext);
   if (!context) {
@@ -349,11 +355,13 @@ export function useGame() {
 }
 
 // Convenience hooks for common operations
+// eslint-disable-next-line react-refresh/only-export-components
 export function useGameState() {
   const { state } = useGame();
   return state;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useGameDispatch() {
   const { dispatch } = useGame();
   return dispatch;

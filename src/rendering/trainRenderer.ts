@@ -1,6 +1,5 @@
 // Train rendering - cute wooden toy train aesthetic for isometric view
 
-import { COLORS, DARK_COLORS } from '../constants';
 import type { TrainPosition } from '../logic/trainMovement';
 import type { CarriageType } from '../types';
 
@@ -137,7 +136,6 @@ function drawWheel3D(
 ) {
   // Wheel thickness (visible as a cylinder from the side)
   const thickness = 3;
-  const dirX = Math.cos(rotation);
   const perpX = -Math.sin(rotation);
   const perpY = Math.cos(rotation);
 
@@ -383,25 +381,6 @@ export function drawTrain(
   ctx.restore();
 }
 
-/**
- * Draw a rectangle rotated around its center
- */
-function drawRotatedRect(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  width: number,
-  height: number,
-  rotation: number
-) {
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(rotation);
-  ctx.beginPath();
-  ctx.rect(-width / 2, -height / 2, width, height);
-  ctx.fill();
-  ctx.restore();
-}
 
 /**
  * Draw a carriage following the train
@@ -539,18 +518,6 @@ function drawPassengerCarriage3D(
   }
 }
 
-// Keep old function for compatibility
-function drawPassengerCarriage(
-  ctx: CanvasRenderingContext2D,
-  length: number,
-  _height: number,
-  baseOffset: number,
-  rotation: number,
-  _dirX: number,
-  _dirY: number
-) {
-  drawPassengerCarriage3D(ctx, length, 10, baseOffset, rotation, -Math.sin(rotation), Math.cos(rotation));
-}
 
 /**
  * Cargo carriage - brown box car (3D isometric)
@@ -576,9 +543,6 @@ function drawCargoCarriage3D(
   );
 
   // Sliding door detail (recessed panel)
-  const dirX = Math.cos(rotation);
-  const dirY = Math.sin(rotation);
-
   ctx.save();
   ctx.translate(0, baseOffset - bodyDepth / 2);
   ctx.rotate(rotation);
@@ -600,18 +564,6 @@ function drawCargoCarriage3D(
   ctx.restore();
 }
 
-// Keep old function for compatibility
-function drawCargoCarriage(
-  ctx: CanvasRenderingContext2D,
-  length: number,
-  _height: number,
-  baseOffset: number,
-  rotation: number,
-  _dirX: number,
-  _dirY: number
-) {
-  drawCargoCarriage3D(ctx, length, 10, baseOffset, rotation);
-}
 
 /**
  * Tanker carriage - cylindrical silver tank (3D isometric)
@@ -702,18 +654,6 @@ function drawTankerCarriage3D(
   }
 }
 
-// Keep old function for compatibility
-function drawTankerCarriage(
-  ctx: CanvasRenderingContext2D,
-  length: number,
-  _height: number,
-  baseOffset: number,
-  rotation: number,
-  _dirX: number,
-  _dirY: number
-) {
-  drawTankerCarriage3D(ctx, length, 10, baseOffset, rotation);
-}
 
 /**
  * Coal carriage - open-top hopper (3D isometric)
@@ -801,18 +741,6 @@ function drawCoalCarriage3D(
   ctx.restore();
 }
 
-// Keep old function for compatibility
-function drawCoalCarriage(
-  ctx: CanvasRenderingContext2D,
-  length: number,
-  _height: number,
-  baseOffset: number,
-  rotation: number,
-  _dirX: number,
-  _dirY: number
-) {
-  drawCoalCarriage3D(ctx, length, 10, baseOffset, rotation);
-}
 
 /**
  * Caboose carriage - darker red with cupola (3D isometric)
@@ -946,18 +874,6 @@ function drawCabooseCarriage3D(
   }
 }
 
-// Keep old function for compatibility
-function drawCabooseCarriage(
-  ctx: CanvasRenderingContext2D,
-  length: number,
-  _height: number,
-  baseOffset: number,
-  rotation: number,
-  _dirX: number,
-  _dirY: number
-) {
-  drawCabooseCarriage3D(ctx, length, 10, baseOffset, rotation, -Math.sin(rotation), Math.cos(rotation));
-}
 
 
 /**

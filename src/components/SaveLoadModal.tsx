@@ -25,6 +25,7 @@ export function SaveLoadModal({ mode, onClose }: SaveLoadModalProps) {
 
   // Load saved layouts on mount
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLayouts(getSavedLayouts());
   }, []);
 

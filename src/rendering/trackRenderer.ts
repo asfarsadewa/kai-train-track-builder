@@ -2,7 +2,7 @@
 
 import type { TrackPiece, Rotation, CardinalDirection, GameGrid } from '../types';
 import { gridToScreen } from './isometric';
-import { TILE_WIDTH, TILE_HEIGHT, COLORS, ELEVATION_HEIGHT } from '../constants';
+import { TILE_WIDTH, TILE_HEIGHT, ELEVATION_HEIGHT } from '../constants';
 import { rotateDirection, DIRECTION_OFFSETS } from '../types';
 
 /**

@@ -141,7 +141,7 @@ export function updateCollisionState(
     .filter(s => s.life > 0);
 
   // Update fire (rise and fade)
-  let updatedFire = state.fireParticles
+  const updatedFire = state.fireParticles
     .map(f => ({
       ...f,
       y: f.y - 50 * deltaTime,

@@ -11,6 +11,7 @@ export function WelcomeTips() {
     // Check if user has seen welcome tips
     const hasSeenWelcome = localStorage.getItem(STORAGE_KEY);
     if (!hasSeenWelcome) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShow(true);
     }
   }, []);
