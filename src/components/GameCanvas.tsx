@@ -4,7 +4,7 @@ import { useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../context/GameContext';
 import { setupCanvas, createRenderLoop, type RenderContext } from '../rendering';
 import { findGridCellAtScreenPoint } from '../rendering/isometric';
-import { drawTrain, drawSmoke } from '../rendering/trainRenderer';
+import { drawTrain, drawSmoke, drawCarriage } from '../rendering/trainRenderer';
 import { calculateGridOrigin, calculateCanvasSize } from '../constants';
 import {
   findTrackAtPosition,
@@ -25,6 +25,69 @@ import { generateId } from '../utils/uuid';
 import { SoundManager } from '../audio';
 import type { TrackPiece } from '../types';
 
+/**
+ * A point in the train's path history, used for snake-game style carriage following
+ */
+interface PathHistoryPoint {
+  segment: number;
+  progress: number;
+  direction: 1 | -1;
+  distance: number; // Cumulative distance traveled when at this point
+}
+
+/**
+ * Snake-game style carriage positioning:
+ * - Track the history of positions the engine has visited
+ * - Each carriage looks back in the history by its offset distance
+ * - This correctly handles direction changes, curves, and reversals
+ */
+function findPositionInHistory(
+  history: PathHistoryPoint[],
+  currentDistance: number,
+  offsetDistance: number
+): PathHistoryPoint | null {
+  const targetDistance = currentDistance - offsetDistance;
+
+  if (targetDistance < 0 || history.length === 0) {
+    return null; // Carriage would be before the start of recorded history
+  }
+
+  // Binary search for the closest history point at or before targetDistance
+  let left = 0;
+  let right = history.length - 1;
+
+  while (left < right) {
+    const mid = Math.ceil((left + right) / 2);
+    if (history[mid].distance <= targetDistance) {
+      left = mid;
+    } else {
+      right = mid - 1;
+    }
+  }
+
+  // Interpolate between history[left] and history[left+1] if possible
+  const point = history[left];
+
+  if (left + 1 < history.length) {
+    const nextPoint = history[left + 1];
+    const segmentLength = nextPoint.distance - point.distance;
+    if (segmentLength > 0) {
+      const t = (targetDistance - point.distance) / segmentLength;
+      // Interpolate progress within the same segment
+      if (point.segment === nextPoint.segment && point.direction === nextPoint.direction) {
+        return {
+          segment: point.segment,
+          progress: point.progress + t * (nextPoint.progress - point.progress),
+          direction: point.direction,
+          distance: targetDistance,
+        };
+      }
+    }
+  }
+
+  return point;
+}
+
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderCtxRef = useRef<RenderContext | null>(null);
@@ -43,6 +106,11 @@ export function GameCanvas() {
   const trainPositionRef = useRef<TrainPosition | null>(null);
   const trainTimeRef = useRef(0);
   const wasPlayingRef = useRef(false);
+  const carriagePositionsRef = useRef<TrainPosition[]>([]);
+
+  // Snake-game style path history for carriage following
+  const pathHistoryRef = useRef<PathHistoryPoint[]>([]);
+  const totalDistanceRef = useRef(0);
 
   // Set up canvas and render loop
   useEffect(() => {
@@ -71,6 +139,10 @@ export function GameCanvas() {
           trainDirectionRef.current = 1;
           trainTimeRef.current = 0;
 
+          // Reset path history for snake-game carriage following
+          pathHistoryRef.current = [];
+          totalDistanceRef.current = 0;
+
           // Find station segment to spawn train there
           let startSegment = 0;
           if (path) {
@@ -91,6 +163,14 @@ export function GameCanvas() {
               originY,
               1
             );
+
+            // Initialize path history with starting position
+            pathHistoryRef.current.push({
+              segment: startSegment,
+              progress: 0,
+              direction: 1,
+              distance: 0,
+            });
           }
         } else if (!currentState.isPlaying && wasPlayingRef.current) {
           // Just stopped - reset train
@@ -99,6 +179,9 @@ export function GameCanvas() {
           trainSegmentRef.current = 0;
           trainProgressRef.current = 0;
           trainDirectionRef.current = 1;
+          carriagePositionsRef.current = [];
+          pathHistoryRef.current = [];
+          totalDistanceRef.current = 0;
         }
         wasPlayingRef.current = currentState.isPlaying;
 
@@ -119,6 +202,39 @@ export function GameCanvas() {
           trainProgressRef.current = result.progress;
           trainDirectionRef.current = result.direction;
 
+          // Calculate distance traveled this frame
+          // This is approximate but good enough for smooth carriage following
+          const speed = 1.5; // segments per second
+          const distanceTraveled = speed * deltaTime;
+          totalDistanceRef.current += distanceTraveled;
+
+          // Add current position to path history
+          // Only add if position has changed meaningfully
+          const history = pathHistoryRef.current;
+          const lastPoint = history[history.length - 1];
+          if (
+            !lastPoint ||
+            lastPoint.segment !== result.segmentIndex ||
+            lastPoint.direction !== result.direction ||
+            Math.abs(lastPoint.progress - result.progress) > 0.01
+          ) {
+            history.push({
+              segment: result.segmentIndex,
+              progress: result.progress,
+              direction: result.direction,
+              distance: totalDistanceRef.current,
+            });
+
+            // Limit history size to prevent memory issues
+            // Keep enough history for max carriages + buffer
+            const maxHistoryLength = 1000;
+            if (history.length > maxHistoryLength) {
+              // Remove old entries but adjust distances
+              const removeCount = history.length - maxHistoryLength;
+              history.splice(0, removeCount);
+            }
+          }
+
           trainPositionRef.current = calculateTrainPosition(
             trainPathRef.current,
             result.segmentIndex,
@@ -127,12 +243,52 @@ export function GameCanvas() {
             originY,
             result.direction
           );
+
+          // Calculate carriage positions using snake-game style history lookup
+          const CARRIAGE_SPACING = 0.5; // Segments worth of distance between carriages
+          const path = trainPathRef.current;
+          const newCarriagePositions: TrainPosition[] = [];
+
+          for (let i = 0; i < currentState.carriageConfig.length; i++) {
+            const offsetDistance = (i + 1) * CARRIAGE_SPACING;
+            const historyPoint = findPositionInHistory(
+              pathHistoryRef.current,
+              totalDistanceRef.current,
+              offsetDistance
+            );
+
+            if (historyPoint) {
+              const carriagePos = calculateTrainPosition(
+                path,
+                historyPoint.segment,
+                historyPoint.progress,
+                originX,
+                originY,
+                historyPoint.direction
+              );
+              newCarriagePositions.push(carriagePos);
+            }
+          }
+          carriagePositionsRef.current = newCarriagePositions;
         }
       },
-      // Custom draw callback for train
+      // Custom draw callback for train and carriages
       (ctx: CanvasRenderingContext2D) => {
         if (trainPositionRef.current && stateRef.current.isPlaying) {
+          // Draw smoke first (behind everything)
           drawSmoke(ctx, trainPositionRef.current, trainTimeRef.current);
+
+          // Draw carriages from back to front (so front carriages overlap back ones)
+          const carriageConfig = stateRef.current.carriageConfig;
+          for (let i = carriagePositionsRef.current.length - 1; i >= 0; i--) {
+            const pos = carriagePositionsRef.current[i];
+            const config = carriageConfig[i];
+            if (pos && config) {
+              drawCarriage(ctx, pos, config.type);
+            }
+          }
+
+          // Draw engine last (in front)
           drawTrain(ctx, trainPositionRef.current);
         }
       }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { TrackPalette } from './TrackPalette';
 import { TerrainPalette } from './TerrainPalette';
+import { TrainPalette } from './TrainPalette';
 import { SaveLoadModal } from './SaveLoadModal';
 import { HelpOverlay } from './HelpOverlay';
 import { SoundManager } from '../audio';
@@ -100,6 +101,10 @@ export function Toolbar() {
       <div style={styles.divider} />
 
       <TerrainPalette />
+
+      <div style={styles.divider} />
+
+      <TrainPalette />
 
       <div style={styles.divider} />
 

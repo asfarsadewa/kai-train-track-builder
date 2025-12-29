@@ -31,7 +31,7 @@ export function SaveLoadModal({ mode, onClose }: SaveLoadModalProps) {
   const handleSave = () => {
     if (!saveName.trim()) return;
 
-    const layout = serializeLayout(saveName.trim(), state.grid, state.tracks);
+    const layout = serializeLayout(saveName.trim(), state.grid, state.tracks, state.carriageConfig);
     if (saveLayout(layout)) {
       setLayouts(getSavedLayouts());
       setSaveName('');
@@ -44,8 +44,8 @@ export function SaveLoadModal({ mode, onClose }: SaveLoadModalProps) {
 
     const layout = layouts.find((l) => l.id === selectedId);
     if (layout) {
-      const { grid, tracks } = deserializeLayout(layout);
-      dispatch({ type: 'LOAD_LAYOUT', grid, tracks });
+      const { grid, tracks, carriageConfig } = deserializeLayout(layout);
+      dispatch({ type: 'LOAD_LAYOUT', grid, tracks, carriageConfig });
       onClose();
     }
   };
@@ -118,6 +118,8 @@ export function SaveLoadModal({ mode, onClose }: SaveLoadModalProps) {
                     </span>
                     <span style={styles.layoutMeta}>
                       {layout.tracks.length} tracks
+                      {layout.carriageConfig && layout.carriageConfig.length > 0 &&
+                        ` · ${layout.carriageConfig.length} carriage${layout.carriageConfig.length !== 1 ? 's' : ''}`}
                     </span>
                   </div>
                   <button

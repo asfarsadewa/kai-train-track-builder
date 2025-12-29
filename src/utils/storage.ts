@@ -1,6 +1,6 @@
 // Save/Load utilities for persisting layouts to localStorage
 
-import type { GameGrid, TrackPiece, TerrainType } from '../types';
+import type { GameGrid, TrackPiece, TerrainType, CarriageConfig, CarriageType } from '../types';
 
 const STORAGE_KEY = 'kai-train-track-builder-saves';
 const CURRENT_VERSION = '1.0';
@@ -25,6 +25,7 @@ export interface SavedLayout {
     switchState?: string;
     signalState?: string;
   }>;
+  carriageConfig?: Array<{ type: string }>; // Train composition
 }
 
 // Storage format
@@ -46,7 +47,8 @@ function generateSaveId(): string {
 export function serializeLayout(
   name: string,
   grid: GameGrid,
-  tracks: Map<string, TrackPiece>
+  tracks: Map<string, TrackPiece>,
+  carriageConfig: CarriageConfig[] = []
 ): SavedLayout {
   return {
     id: generateSaveId(),
@@ -72,6 +74,7 @@ export function serializeLayout(
       switchState: track.switchState,
       signalState: track.signalState,
     })),
+    carriageConfig: carriageConfig.map((c) => ({ type: c.type })),
   };
 }
 
@@ -81,6 +84,7 @@ export function serializeLayout(
 export function deserializeLayout(saved: SavedLayout): {
   grid: GameGrid;
   tracks: TrackPiece[];
+  carriageConfig: CarriageConfig[];
 } {
   const grid: GameGrid = {
     width: saved.grid.width,
@@ -104,7 +108,11 @@ export function deserializeLayout(saved: SavedLayout): {
     signalState: t.signalState as 'green' | 'red' | undefined,
   }));
 
-  return { grid, tracks };
+  const carriageConfig: CarriageConfig[] = (saved.carriageConfig || []).map((c) => ({
+    type: c.type as Exclude<CarriageType, 'engine'>,
+  }));
+
+  return { grid, tracks, carriageConfig };
 }
 
 /**

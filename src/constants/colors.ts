@@ -63,10 +63,29 @@ export const COLORS = {
     engine: '#D32F2F', // Classic red engine
     engineHighlight: '#EF5350',
     engineShadow: '#B71C1C',
-    carriage: '#1976D2', // Blue carriage
-    carriageHighlight: '#42A5F5',
+    // Passenger carriage (blue)
+    passenger: '#1976D2',
+    passengerHighlight: '#42A5F5',
+    // Cargo/freight carriage (brown)
+    cargo: '#8D6E63',
+    cargoHighlight: '#A1887F',
+    cargoDark: '#5D4037',
+    // Tanker carriage (silver/gray)
+    tanker: '#546E7A',
+    tankerHighlight: '#78909C',
+    tankerDark: '#455A64',
+    // Coal hopper (dark gray)
+    coal: '#424242',
+    coalHighlight: '#616161',
+    coalDark: '#212121',
+    // Caboose (darker red)
+    caboose: '#C62828',
+    cabooseHighlight: '#E53935',
+    cabooseDark: '#B71C1C',
+    // Common
     wheel: '#37474F',
     chimney: '#212121',
+    window: '#81D4FA',
   },
 
   // UI colors

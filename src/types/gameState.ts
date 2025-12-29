@@ -2,7 +2,7 @@
 
 import type { GameGrid, GridPosition, TerrainType } from './grid';
 import type { TrackPiece, TrackType } from './tracks';
-import type { TrainState } from './train';
+import type { TrainState, CarriageConfig } from './train';
 
 export type ToolType =
   | 'select'
@@ -29,6 +29,7 @@ export interface GameState {
   isPlaying: boolean;
   camera: CameraState;
   hoveredCell: GridPosition | null;
+  carriageConfig: CarriageConfig[]; // User's configured train composition
 }
 
 // For save/load persistence

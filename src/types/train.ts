@@ -6,6 +6,17 @@ export interface TrainPosition {
   subPath: number; // For switches: which path (0 or 1)
 }
 
+// Carriage types available in the game
+export type CarriageType = 'engine' | 'passenger' | 'cargo' | 'tanker' | 'coal' | 'caboose';
+
+// User's configured train composition (persists across play/stop)
+export interface CarriageConfig {
+  type: Exclude<CarriageType, 'engine'>; // Engine is always present, can't be added
+}
+
+// Maximum number of carriages (excluding engine)
+export const MAX_CARRIAGES = 5;
+
 export interface TrainState {
   position: TrainPosition;
   direction: 'forward' | 'backward';
@@ -15,7 +26,7 @@ export interface TrainState {
 }
 
 export interface CarriageState {
-  type: 'engine' | 'passenger' | 'cargo';
+  type: CarriageType;
   trackId: string;
   progress: number;
   subPath: number;

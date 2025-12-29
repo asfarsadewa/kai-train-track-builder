@@ -19,8 +19,10 @@ import type {
   TerrainType,
   CameraState,
   GridPosition,
+  CarriageConfig,
+  CarriageType,
 } from '../types';
-import { createDefaultGrid, createDefaultCamera } from '../types';
+import { createDefaultGrid, createDefaultCamera, MAX_CARRIAGES } from '../types';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '../constants';
 
 // Action types
@@ -39,9 +41,12 @@ export type GameAction =
   | { type: 'REMOVE_TRAIN' }
   | { type: 'SET_CAMERA'; camera: Partial<CameraState> }
   | { type: 'SET_HOVERED_CELL'; cell: GridPosition | null }
-  | { type: 'LOAD_LAYOUT'; grid: GameGrid; tracks: TrackPiece[] }
+  | { type: 'LOAD_LAYOUT'; grid: GameGrid; tracks: TrackPiece[]; carriageConfig?: CarriageConfig[] }
   | { type: 'CLEAR_LAYOUT' }
-  | { type: 'RESTORE_SNAPSHOT'; snapshot: HistorySnapshot };
+  | { type: 'RESTORE_SNAPSHOT'; snapshot: HistorySnapshot }
+  | { type: 'ADD_CARRIAGE'; carriageType: Exclude<CarriageType, 'engine'> }
+  | { type: 'REMOVE_CARRIAGE'; index: number }
+  | { type: 'CLEAR_CARRIAGES' };
 
 // Snapshot of undoable state (only tracks and terrain)
 interface HistorySnapshot {
@@ -64,6 +69,7 @@ function createInitialState(): GameState {
     isPlaying: false,
     camera: createDefaultCamera(),
     hoveredCell: null,
+    carriageConfig: [], // Engine only by default
   };
 }
 
@@ -197,6 +203,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         tracks: newTracks,
         train: null,
         isPlaying: false,
+        carriageConfig: action.carriageConfig || [],
       };
     }
 
@@ -207,6 +214,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         tracks: new Map(),
         train: null,
         isPlaying: false,
+        carriageConfig: [],
       };
 
     case 'RESTORE_SNAPSHOT':
@@ -217,6 +225,25 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         train: null,
         isPlaying: false,
       };
+
+    case 'ADD_CARRIAGE': {
+      if (state.carriageConfig.length >= MAX_CARRIAGES) {
+        return state; // Already at max
+      }
+      return {
+        ...state,
+        carriageConfig: [...state.carriageConfig, { type: action.carriageType }],
+      };
+    }
+
+    case 'REMOVE_CARRIAGE': {
+      const newConfig = [...state.carriageConfig];
+      newConfig.splice(action.index, 1);
+      return { ...state, carriageConfig: newConfig };
+    }
+
+    case 'CLEAR_CARRIAGES':
+      return { ...state, carriageConfig: [] };
 
     default:
       return state;
