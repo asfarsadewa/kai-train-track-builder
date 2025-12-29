@@ -7,6 +7,7 @@ class SoundManagerClass {
   private enabled: boolean = true;
   private volume: number = 0.5;
   private chugInterval: number | null = null;
+  private backgroundMusic: HTMLAudioElement | null = null;
 
   // Initialize audio context (must be called after user interaction)
   init() {
@@ -20,11 +21,15 @@ class SoundManagerClass {
     this.enabled = enabled;
     if (!enabled) {
       this.stopChug();
+      this.stopMusic();
     }
   }
 
   setVolume(volume: number) {
     this.volume = Math.max(0, Math.min(1, volume));
+    if (this.backgroundMusic) {
+      this.backgroundMusic.volume = this.volume;
+    }
   }
 
   isEnabled() {
@@ -137,6 +142,30 @@ class SoundManagerClass {
     if (this.chugInterval) {
       clearInterval(this.chugInterval);
       this.chugInterval = null;
+    }
+  }
+
+  // Start background music
+  startMusic() {
+    if (!this.enabled) return;
+
+    if (!this.backgroundMusic) {
+      this.backgroundMusic = new Audio('/rails_through_the_sky.mp3');
+      this.backgroundMusic.loop = true;
+      this.backgroundMusic.volume = this.volume;
+    }
+
+    this.backgroundMusic.currentTime = 0;
+    this.backgroundMusic.play().catch(() => {
+      // Autoplay may be blocked - that's ok
+    });
+  }
+
+  // Stop background music
+  stopMusic() {
+    if (this.backgroundMusic) {
+      this.backgroundMusic.pause();
+      this.backgroundMusic.currentTime = 0;
     }
   }
 

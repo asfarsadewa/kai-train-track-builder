@@ -33,12 +33,14 @@ export function Toolbar() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showHelp]);
 
-  // Handle train sound
+  // Handle train sound and music
   useEffect(() => {
     if (state.isPlaying && soundEnabled) {
       SoundManager.startChug();
+      SoundManager.startMusic();
     } else {
       SoundManager.stopChug();
+      SoundManager.stopMusic();
     }
   }, [state.isPlaying, soundEnabled]);
 
