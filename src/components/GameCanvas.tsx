@@ -68,15 +68,24 @@ export function GameCanvas() {
           // Just started playing - build path
           const path = findBestPath(currentState.tracks);
           trainPathRef.current = path;
-          trainSegmentRef.current = 0;
-          trainProgressRef.current = 0;
           trainDirectionRef.current = 1;
           trainTimeRef.current = 0;
+
+          // Find station segment to spawn train there
+          let startSegment = 0;
+          if (path) {
+            const stationIndex = path.segments.findIndex(seg => seg.track.type === 'station');
+            if (stationIndex !== -1) {
+              startSegment = stationIndex;
+            }
+          }
+          trainSegmentRef.current = startSegment;
+          trainProgressRef.current = 0;
 
           if (path && path.segments.length > 0) {
             trainPositionRef.current = calculateTrainPosition(
               path,
-              0,
+              startSegment,
               0,
               originX,
               originY,

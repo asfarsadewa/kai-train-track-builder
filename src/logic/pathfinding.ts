@@ -173,6 +173,86 @@ export function findStartingTrack(
 }
 
 /**
+ * Build a full path from a station, exploring both directions.
+ * The station becomes a spawn point in the middle of the path, not a terminus.
+ */
+function buildFullPathFromStation(
+  station: TrackPiece,
+  tracks: Map<string, TrackPiece>
+): TrainPath | null {
+  const connections = getTrackConnections(station);
+  if (connections.length === 0) return null;
+
+  // For a station with 2 connections (typical straight-through station),
+  // build path in both directions and combine them
+  if (connections.length >= 2) {
+    const dir1 = connections[0];
+    const dir2 = connections[1];
+
+    // Build path going direction 1 (excluding the station itself initially)
+    const nextPos1 = getNeighborPosition(station.position, dir1);
+    const nextTrack1 = findTrackAtPosition(tracks, nextPos1);
+
+    const nextPos2 = getNeighborPosition(station.position, dir2);
+    const nextTrack2 = findTrackAtPosition(tracks, nextPos2);
+
+    // Build paths from neighbors outward
+    let path1Segments: PathSegment[] = [];
+    let path2Segments: PathSegment[] = [];
+
+    if (nextTrack1 && hasConnectionInDirection(nextTrack1, OPPOSITE_DIRECTION[dir1])) {
+      const path1 = buildPath(nextTrack1, OPPOSITE_DIRECTION[dir1], tracks);
+      path1Segments = path1.segments;
+    }
+
+    if (nextTrack2 && hasConnectionInDirection(nextTrack2, OPPOSITE_DIRECTION[dir2])) {
+      const path2 = buildPath(nextTrack2, OPPOSITE_DIRECTION[dir2], tracks);
+      path2Segments = path2.segments;
+    }
+
+    // Create station segment
+    const stationSegment: PathSegment = {
+      trackId: station.id,
+      track: station,
+      entryDirection: dir1,
+      exitDirection: dir2,
+      pathIndex: 0,
+    };
+
+    // Combine: reverse path1 + station + path2
+    // path1 was built going away from station, so reverse it to lead TO station
+    const reversedPath1 = path1Segments.slice().reverse().map(seg => ({
+      ...seg,
+      entryDirection: seg.exitDirection,
+      exitDirection: seg.entryDirection,
+    }));
+
+    const fullSegments = [...reversedPath1, stationSegment, ...path2Segments];
+
+    // Check if it's a loop (first and last segments connect)
+    let isLoop = false;
+    if (fullSegments.length > 2) {
+      const first = fullSegments[0];
+      const last = fullSegments[fullSegments.length - 1];
+      const lastExitPos = getNeighborPosition(last.track.position, last.exitDirection);
+      if (lastExitPos.x === first.track.position.x && lastExitPos.y === first.track.position.y) {
+        isLoop = true;
+      }
+    }
+
+    return {
+      segments: fullSegments,
+      isLoop,
+      totalLength: fullSegments.length,
+    };
+  }
+
+  // For station with only 1 connection, just build path from that direction
+  const path = buildPath(station, connections[0], tracks);
+  return path;
+}
+
+/**
  * Find the longest path/loop in the track network, starting from a station
  */
 export function findBestPath(tracks: Map<string, TrackPiece>): TrainPath | null {
@@ -182,19 +262,15 @@ export function findBestPath(tracks: Map<string, TrackPiece>): TrainPath | null 
   const stations = Array.from(tracks.values()).filter(t => t.type === 'station');
 
   for (const station of stations) {
-    const connections = getTrackConnections(station);
+    const path = buildFullPathFromStation(station, tracks);
 
-    for (const direction of connections) {
-      const path = buildPath(station, direction, tracks);
+    if (path && (!bestPath || path.segments.length > bestPath.segments.length)) {
+      bestPath = path;
+    }
 
-      if (!bestPath || path.segments.length > bestPath.segments.length) {
-        bestPath = path;
-      }
-
-      // Prefer loops
-      if (path.isLoop && (!bestPath.isLoop || path.segments.length > bestPath.segments.length)) {
-        bestPath = path;
-      }
+    // Prefer loops
+    if (path && path.isLoop && (!bestPath?.isLoop || path.segments.length > bestPath.segments.length)) {
+      bestPath = path;
     }
   }
 
