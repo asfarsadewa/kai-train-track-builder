@@ -173,16 +173,19 @@ export function findStartingTrack(
 }
 
 /**
- * Find the longest path/loop in the track network
+ * Find the longest path/loop in the track network, starting from a station
  */
 export function findBestPath(tracks: Map<string, TrackPiece>): TrainPath | null {
   let bestPath: TrainPath | null = null;
 
-  for (const track of tracks.values()) {
-    const connections = getTrackConnections(track);
+  // First, try to find paths starting from stations (required spawn points)
+  const stations = Array.from(tracks.values()).filter(t => t.type === 'station');
+
+  for (const station of stations) {
+    const connections = getTrackConnections(station);
 
     for (const direction of connections) {
-      const path = buildPath(track, direction, tracks);
+      const path = buildPath(station, direction, tracks);
 
       if (!bestPath || path.segments.length > bestPath.segments.length) {
         bestPath = path;
@@ -191,6 +194,21 @@ export function findBestPath(tracks: Map<string, TrackPiece>): TrainPath | null 
       // Prefer loops
       if (path.isLoop && (!bestPath.isLoop || path.segments.length > bestPath.segments.length)) {
         bestPath = path;
+      }
+    }
+  }
+
+  // If no station paths found, fall back to any track (for backwards compatibility)
+  if (!bestPath) {
+    for (const track of tracks.values()) {
+      const connections = getTrackConnections(track);
+
+      for (const direction of connections) {
+        const path = buildPath(track, direction, tracks);
+
+        if (!bestPath || path.segments.length > bestPath.segments.length) {
+          bestPath = path;
+        }
       }
     }
   }
