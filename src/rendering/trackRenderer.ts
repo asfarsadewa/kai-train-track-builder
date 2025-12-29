@@ -774,56 +774,34 @@ function drawSinglePortal(
 }
 
 /**
- * Get the terrain elevation at a neighbor position.
- * Returns undefined if the position is out of bounds.
+ * Get the track at a neighbor position, if any
  */
-function getNeighborTerrainElevation(
-  grid: GameGrid,
-  x: number,
-  y: number,
-  direction: CardinalDirection
-): number | undefined {
-  const offset = DIRECTION_OFFSETS[direction];
-  const nx = x + offset.x;
-  const ny = y + offset.y;
-
-  // Check bounds
-  if (nx < 0 || nx >= grid.width || ny < 0 || ny >= grid.height) {
-    return undefined;
-  }
-
-  return grid.cells[ny][nx].elevation;
-}
-
-/**
- * Check if there's a track at a neighbor position
- */
-function hasNeighborTrack(
+function getNeighborTrack(
   tracks: Map<string, TrackPiece>,
   x: number,
   y: number,
   direction: CardinalDirection
-): boolean {
+): TrackPiece | undefined {
   const offset = DIRECTION_OFFSETS[direction];
   const nx = x + offset.x;
   const ny = y + offset.y;
 
   for (const track of tracks.values()) {
     if (track.position.x === nx && track.position.y === ny) {
-      return true;
+      return track;
     }
   }
-  return false;
+  return undefined;
 }
 
 /**
- * Calculate connection elevations for a track based on neighbor terrain.
+ * Calculate connection elevations for a track based on neighbor tracks.
  * Only slopes toward neighbors that have tracks - dead ends stay flat.
- * At each edge with a neighbor track, we use the MIDPOINT between elevations.
+ * At each edge with a neighbor track, we use the MIDPOINT between track elevations.
  */
 function calculateConnectionElevations(
   track: TrackPiece,
-  grid: GameGrid,
+  _grid: GameGrid,
   tracks: Map<string, TrackPiece>
 ): ConnectionElevations {
   const elevations: ConnectionElevations = {};
@@ -831,23 +809,12 @@ function calculateConnectionElevations(
   const trackElev = track.elevation;
 
   for (const dir of directions) {
-    // Check if there's a track at the neighbor position
-    const hasTrack = hasNeighborTrack(tracks, track.position.x, track.position.y, dir);
+    // Get the neighbor track if any
+    const neighborTrack = getNeighborTrack(tracks, track.position.x, track.position.y, dir);
 
-    if (hasTrack) {
-      // There's a neighbor track - use midpoint for smooth connection
-      const neighborElev = getNeighborTerrainElevation(
-        grid,
-        track.position.x,
-        track.position.y,
-        dir
-      );
-
-      if (neighborElev !== undefined) {
-        elevations[dir] = (trackElev + neighborElev) / 2;
-      } else {
-        elevations[dir] = trackElev;
-      }
+    if (neighborTrack) {
+      // Use the TRACK elevation of the neighbor for correct bridge/tunnel handling
+      elevations[dir] = (trackElev + neighborTrack.elevation) / 2;
     } else {
       // No neighbor track (dead end) - stay at track's own elevation
       elevations[dir] = trackElev;
