@@ -1,73 +1,93 @@
-# React + TypeScript + Vite
+# Kai's Train Track Builder
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A 2.5D isometric train track builder game built with React, TypeScript, and Canvas 2D.
 
-Currently, two official plugins are available:
+Build your own railway, paint the terrain, and watch your train chug along the tracks!
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## React Compiler
+### Track Building
+- **8 track types**: Straight, curves, switches, crossings, stations, signals, bridges, and tunnels
+- **Auto-connect**: Tracks automatically rotate to connect with neighbors
+- **Elevation support**: Build tracks on raised terrain with smooth visual slopes
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Terrain Editing
+- **Raise/Lower terrain**: Create hills and valleys
+- **8 terrain types**: Grass, water, sand, rock, forest, farm, village, and flowers
+- **Visual decorations**: Each terrain type has unique visuals (trees, houses, crops, etc.)
 
-## Expanding the ESLint configuration
+### Train Simulation
+- **Smooth movement**: Train follows tracks with bezier curve interpolation
+- **Path finding**: Automatically finds the best route through your track network
+- **Interactive elements**: Toggle switches and signals to control the train's path
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Polish
+- **Sound effects**: UI clicks, track placement, and train chug sounds
+- **Background music**: Original soundtrack plays while the train runs
+- **Save/Load**: Save your layouts to browser storage
+- **Undo/Redo**: Full history support (Ctrl+Z / Ctrl+Y)
+- **Camera controls**: Pan and zoom to navigate your world
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Getting Started
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+```bash
+# Install dependencies
+npm install
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Controls
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Mouse
+| Action | Control |
+|--------|---------|
+| Use tool | Left click |
+| Pan camera | Right click drag / Middle mouse drag |
+| Zoom | Scroll wheel |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Keyboard
+| Action | Key |
+|--------|-----|
+| Pan camera | Arrow keys |
+| Zoom in/out | + / - |
+| Reset camera | 0 |
+| Rotate track | R |
+| Play/Pause train | Space |
+| Undo | Ctrl+Z |
+| Redo | Ctrl+Y or Ctrl+Shift+Z |
+| Help | ? |
+
+## Tech Stack
+
+- **React 19** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool
+- **Canvas 2D** - Rendering
+- **Web Audio API** - Sound effects
+
+## Project Structure
+
 ```
+src/
+├── components/     # React components (GameCanvas, Toolbar, Palettes)
+├── context/        # Game state management (GameContext)
+├── rendering/      # Canvas rendering (isometric, terrain, tracks, train)
+├── logic/          # Game logic (connections, pathfinding, movement)
+├── audio/          # Sound manager
+├── types/          # TypeScript interfaces
+├── constants/      # Grid sizes, colors, track definitions
+└── utils/          # Utilities
+```
+
+## Screenshots
+
+*Coming soon*
+
+## License
+
+MIT
